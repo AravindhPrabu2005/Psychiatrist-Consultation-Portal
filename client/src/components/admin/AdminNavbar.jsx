@@ -5,25 +5,28 @@ import axiosInstance from '../../axiosInstance';
 
 export default function AdminNavbar() {
   const id = localStorage.getItem("id");
+
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [admin, setAdmin] = useState(null);
+  const [admin, setAdmin] = useState(() => {
+    const cached = localStorage.getItem("admin");
+    return cached ? JSON.parse(cached) : null;
+  });
+
   const dropdownRef = useRef();
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Background fetch to keep data fresh
   useEffect(() => {
-    const fetchAdmin = async () => {
-      try {
-        const res = await axiosInstance.get(`/admins/${id}`);
-        setAdmin(res.data);
-      } catch (err) {
-        console.error('Failed to fetch admin:', err);
-      }
-    };
-
-    fetchAdmin();
+    axiosInstance.get(`/admins/${id}`).then(res => {
+      setAdmin(res.data);
+      localStorage.setItem("admin", JSON.stringify(res.data));
+    }).catch(err => {
+      console.error('Failed to fetch admin:', err);
+    });
   }, [id]);
 
+  // Handle click outside dropdown
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -50,23 +53,30 @@ export default function AdminNavbar() {
       <div className="flex items-center space-x-2">
         <img src="/logo.png" alt="Psycare" className="h-10" />
       </div>
+
       <ul className="flex items-center space-x-10 text-[17px] font-medium">
         <Link to="/admin/home" className={linkClass('/admin/home')}>HOME</Link>
         <Link to="/admin/requests" className={linkClass('/admin/requests')}>REQUESTS</Link>
         <Link to="/admin/appointments" className={linkClass('/admin/appointments')}>APPOINTMENTS</Link>
       </ul>
+
       <div className="relative" ref={dropdownRef}>
         <button onClick={() => setDropdownOpen(!dropdownOpen)} className="flex items-center space-x-2">
           <img
             src={admin?.profilePhoto || 'https://via.placeholder.com/150'}
             alt="Profile"
             className="h-10 w-10 rounded-full object-cover"
+            loading="lazy"
           />
           <ChevronDown className="w-5 h-5 text-gray-600" />
         </button>
+
         {dropdownOpen && (
-          <div className="absolute right-0 mt-2 w-44 bg-white border rounded shadow-lg py-1">
-            <Link to={`/admin/${id}`} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 text-sm text-gray-700">
+          <div className="absolute right-0 mt-2 w-44 bg-white border rounded shadow-lg py-1 z-50">
+            <Link
+              to={`/admin/${id}`}
+              className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 text-sm text-gray-700"
+            >
               <User size={16} /> Profile
             </Link>
             <button
