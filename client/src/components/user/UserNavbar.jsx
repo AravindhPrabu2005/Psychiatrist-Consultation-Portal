@@ -63,7 +63,7 @@ export default function UserNavbar() {
         </Link>
         <Link
           to="/user/approved"
-          className={`pb-1 ${location.pathname === '/user/home' ? 'text-[#2A1D7C] border-b-2 border-[#2A1D7C]' : 'hover:text-[#2A1D7C]'}`}
+          className={`pb-1 ${location.pathname === '/user/approved' ? 'text-[#2A1D7C] border-b-2 border-[#2A1D7C]' : 'hover:text-[#2A1D7C]'}`}
         >
           APPOINTMENTS
         </Link>
