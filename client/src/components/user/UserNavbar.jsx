@@ -1,29 +1,26 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, User, LogOut } from 'lucide-react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import axiosInstance from '../../axiosInstance';
-import { User, LogOut } from 'lucide-react';
-
 
 export default function UserNavbar() {
   const id = localStorage.getItem("id");
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    const cached = localStorage.getItem("user");
+    return cached ? JSON.parse(cached) : null;
+  });
+
   const dropdownRef = useRef();
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Background update of user info (without blocking UI)
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const res = await axiosInstance.get(`/users/${id}`);
-        setUser(res.data);
-      } catch (err) {
-        console.error('Error fetching user:', err);
-      }
-    };
-
-    fetchUser();
+    axiosInstance.get(`/users/${id}`).then(res => {
+      setUser(res.data);
+      localStorage.setItem("user", JSON.stringify(res.data));
+    }).catch(console.error);
   }, [id]);
 
   useEffect(() => {
@@ -38,7 +35,7 @@ export default function UserNavbar() {
     };
   }, []);
 
-  function handlelogout() {
+  function handleLogout() {
     localStorage.clear();
     navigate('/');
   }
@@ -49,36 +46,23 @@ export default function UserNavbar() {
         <img src="/logo.png" alt="PsyCare" className="h-8" />
       </div>
       <ul className="flex items-center space-x-10 text-[17px] font-medium">
-        <Link
-          to="/user/home"
-          className={`pb-1 ${location.pathname === '/user/home' ? 'text-[#2A1D7C] border-b-2 border-[#2A1D7C]' : 'hover:text-[#2A1D7C]'}`}
-        >
-          HOME
-        </Link>
-        <Link
-          to="/user/doctors"
-          className={`pb-1 ${location.pathname === '/user/doctors' ? 'text-[#2A1D7C] border-b-2 border-[#2A1D7C]' : 'hover:text-[#2A1D7C]'}`}
-        >
-          ALL DOCTORS
-        </Link>
-        <Link
-          to="/user/approved"
-          className={`pb-1 ${location.pathname === '/user/approved' ? 'text-[#2A1D7C] border-b-2 border-[#2A1D7C]' : 'hover:text-[#2A1D7C]'}`}
-        >
-          APPOINTMENTS
-        </Link>
-        <Link
-          to="/user/about"
-          className={`pb-1 ${location.pathname === '/user/about' ? 'text-[#2A1D7C] border-b-2 border-[#2A1D7C]' : 'hover:text-[#2A1D7C]'}`}
-        >
-          ABOUT
-        </Link>
-        <Link
-          to="/user/contact"
-          className={`pb-1 ${location.pathname === '/user/contact' ? 'text-[#2A1D7C] border-b-2 border-[#2A1D7C]' : 'hover:text-[#2A1D7C]'}`}
-        >
-          CONTACT
-        </Link>
+        {[
+          { to: "/user/home", label: "HOME" },
+          { to: "/user/doctors", label: "ALL DOCTORS" },
+          { to: "/user/approved", label: "APPOINTMENTS" },
+          { to: "/user/about", label: "ABOUT" },
+          { to: "/user/contact", label: "CONTACT" }
+        ].map(link => (
+          <Link
+            key={link.to}
+            to={link.to}
+            className={`pb-1 ${location.pathname === link.to
+              ? 'text-[#2A1D7C] border-b-2 border-[#2A1D7C]'
+              : 'hover:text-[#2A1D7C]'}`}
+          >
+            {link.label}
+          </Link>
+        ))}
       </ul>
       <div className="relative" ref={dropdownRef}>
         <button onClick={() => setDropdownOpen(!dropdownOpen)} className="flex items-center space-x-2">
@@ -86,11 +70,12 @@ export default function UserNavbar() {
             src={user?.profilePhoto || 'https://via.placeholder.com/150'}
             alt="Profile"
             className="h-10 w-10 rounded-full object-cover"
+            loading="lazy"
           />
           <ChevronDown className="w-5 h-5 text-gray-600" />
         </button>
         {dropdownOpen && (
-          <div className="absolute right-0 mt-2 w-44 bg-white border rounded shadow-lg py-1">
+          <div className="absolute right-0 mt-2 w-44 bg-white border rounded shadow-lg py-1 z-50">
             <Link
               to={`/user/${id}`}
               className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 text-sm text-gray-700"
@@ -98,7 +83,7 @@ export default function UserNavbar() {
               <User size={16} /> Profile
             </Link>
             <button
-              onClick={handlelogout}
+              onClick={handleLogout}
               className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-gray-700"
             >
               <LogOut size={16} /> Logout
