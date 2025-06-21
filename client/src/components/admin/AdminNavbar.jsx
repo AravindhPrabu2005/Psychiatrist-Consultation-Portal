@@ -46,7 +46,7 @@ export default function AdminNavbar() {
   }
 
   return (
-    <nav className="flex items-center justify-between px-8 py-4 border-b shadow-sm bg-white">
+    <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 py-4 border-b shadow-sm bg-white">
       <div className="flex items-center space-x-2">
         <img src="/logo.png" alt="Psycare" className="h-10" />
       </div>

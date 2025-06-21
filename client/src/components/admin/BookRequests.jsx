@@ -1,33 +1,40 @@
 import React, { useEffect, useState } from 'react';
 import AdminNavbar from './AdminNavbar';
 import axiosInstance from '../../axiosInstance';
-import { CalendarDays, Clock } from 'lucide-react';
+import { CalendarDays, Clock, Video, UserCircle2, Info, Mail, Phone, MapPin } from 'lucide-react';
 
 export default function BookRequests() {
   const [bookings, setBookings] = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
-  const [modalOpen, setModalOpen] = useState(false);
   const [meetingLink, setMeetingLink] = useState('');
   const [currentBookingId, setCurrentBookingId] = useState(null);
-
-  const [userModalOpen, setUserModalOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
 
   const adminId = localStorage.getItem('id');
 
   useEffect(() => {
-    axiosInstance.get(`/bookings/admin/${adminId}`)
-      .then(res => {
-        setBookings(res.data);
-        setFiltered(res.data);
-      })
-      .catch(() => {
-        setBookings([]);
-        setFiltered([]);
+  axiosInstance.get(`/bookings/admin/${adminId}`)
+    .then(res => {
+      const bookingsWithUser = Promise.all(
+        res.data
+          .filter(b => b.status.toLowerCase() === 'pending') // ✅ Only pending bookings
+          .map(async b => {
+            const user = await axiosInstance.get(`/users/${b.userId}`).then(r => r.data).catch(() => null);
+            return { ...b, user };
+          })
+      );
+      bookingsWithUser.then(all => {
+        setBookings(all);
+        setFiltered(all);
       });
-  }, [adminId]);
+    })
+    .catch(() => {
+      setBookings([]);
+      setFiltered([]);
+    });
+}, [adminId]);
+
 
   function formatDateToInput(dateStr) {
     return new Date(dateStr).toISOString().split('T')[0];
@@ -54,15 +61,13 @@ export default function BookRequests() {
 
   function handleApprove(id) {
     setCurrentBookingId(id);
-    setModalOpen(true);
   }
 
   function handleSchedule() {
-    axiosInstance.post(`/bookings/schedule/${currentBookingId}`, { meetingLink })
-      .then(() => {
-        setModalOpen(false);
-        setMeetingLink('');
-      });
+    axiosInstance.post(`/bookings/schedule/${currentBookingId}`, { meetingLink }).then(() => {
+      setMeetingLink('');
+      setCurrentBookingId(null);
+    });
   }
 
   function handleCancel(id) {
@@ -71,171 +76,112 @@ export default function BookRequests() {
     });
   }
 
-  function handleUserDetails(userId) {
-    axiosInstance.get(`/users/${userId}`)
-      .then(res => {
-        setSelectedUser(res.data);
-        setUserModalOpen(true);
-      })
-      .catch(() => {
-        alert("User not found");
-      });
-  }
-
   return (
     <>
       <AdminNavbar />
-      <div className="p-6 max-w-6xl mx-auto">
-        <h2 className="text-3xl font-bold mb-6 text-[#2A1D7C]">Booking Requests</h2>
+      <div className="p-8 max-w-7xl mx-auto pt-28">
+        <h2 className="text-4xl font-semibold mb-8 text-[#1E1E2F] tracking-tight">Manage Booking Requests</h2>
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-4 mb-8 bg-green-50 border border-green-200 p-4 rounded-lg">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap gap-6 mb-10 items-end bg-green-50 p-5 rounded-xl border border-green-200">
+          <div className="flex items-center gap-3">
             <CalendarDays className="text-green-700" />
             <input
               type="date"
-              className="border border-green-300 rounded px-3 py-2 focus:outline-green-500"
+              className="border border-green-300 rounded px-4 py-2 focus:outline-green-500"
               value={selectedDate}
               onChange={e => setSelectedDate(e.target.value)}
             />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <Clock className="text-green-700" />
             <select
-              className="border border-green-300 rounded px-3 py-2 focus:outline-green-500"
+              className="border border-green-300 rounded px-4 py-2 focus:outline-green-500"
               value={selectedTime}
               onChange={e => setSelectedTime(e.target.value)}
             >
-              <option value="">All Slots</option>
-              {[
-                "09:00", "10:00", "11:00", "12:00", "13:00",
-                "14:00", "15:00", "16:00", "17:00", "18:00",
-                "19:00", "20:00"
-              ].map(time => (
-                <option key={time} value={time}>{time}</option>
-              ))}
+              <option value="">All Times</option>
+              {[...Array(12).keys()].map(i => {
+                const hour = 9 + i;
+                const time = `${hour.toString().padStart(2, '0')}:00`;
+                return <option key={time} value={time}>{time}</option>;
+              })}
             </select>
           </div>
           <button
             onClick={filterBookings}
-            className="bg-[#2ADA71] text-white px-5 py-2 rounded hover:brightness-110 transition font-medium"
+            className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"
           >
-            Apply Filter
+            Filter
           </button>
         </div>
 
-        {/* Booking List */}
         {filtered.length === 0 ? (
-          <div className="text-center text-gray-600 mt-10">
-            <p>No booking requests found for the selected criteria.</p>
-          </div>
+          <div className="text-center text-gray-500">No bookings available for the selected filters.</div>
         ) : (
-          <div className="grid gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filtered.map((booking, idx) => (
-              <div key={idx} className="border border-green-200 bg-white p-6 rounded-lg shadow-sm">
-                <div className="grid sm:grid-cols-2 gap-2 sm:gap-4">
-                  <p><span className="font-medium text-green-900">Date:</span> {formatDateToInput(booking.date)}</p>
-                  <p><span className="font-medium text-green-900">Time:</span> {formatTimeTo12Hour(booking.time)}</p>
-                  <p><span className="font-medium text-green-900">Issue:</span> {booking.issue}</p>
-                  <p><span className="font-medium text-green-900">Status:</span> {booking.status}</p>
-                  <p><span className="font-medium text-green-900">User ID:</span> {booking.userId}</p>
+              <div key={idx} className="bg-white p-6 rounded-xl shadow border border-gray-200">
+                <div className="flex items-center gap-4 mb-4">
+                  {booking.user?.profilePhoto ? (
+                    <img
+                      src={booking.user.profilePhoto}
+                      className="w-16 h-16 rounded-full object-cover border border-gray-300"
+                    />
+                  ) : (
+                    <UserCircle2 className="w-16 h-16 text-gray-400" />
+                  )}
+                  <div>
+                    <p className="text-lg font-medium text-gray-900">{booking.user?.name || 'Unknown User'}</p>
+                    <p className="text-sm text-gray-600">{booking.user?.email}</p>
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-3 mt-4">
+
+                <div className="space-y-2 text-sm text-gray-700">
+                  <p><span className="font-medium">Date:</span> {formatDateToInput(booking.date)}</p>
+                  <p><span className="font-medium">Time:</span> {formatTimeTo12Hour(booking.time)}</p>
+                  <p><span className="font-medium">Issue:</span> {booking.issue}</p>
+                  <p><span className="font-medium">Status:</span> {booking.status}</p>
+                  <p><Mail className="inline w-4 h-4 mr-1 text-gray-500" /> {booking.user?.email}</p>
+                  <p><Phone className="inline w-4 h-4 mr-1 text-gray-500" /> {booking.user?.phone}</p>
+                  <p><MapPin className="inline w-4 h-4 mr-1 text-gray-500" /> {booking.user?.address}</p>
+                </div>
+
+                <div className="flex flex-wrap gap-3 mt-5">
                   <button
                     onClick={() => handleApprove(booking._id)}
-                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition"
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
                   >
-                    Approve Request
+                    Approve
                   </button>
                   <button
                     onClick={() => handleCancel(booking._id)}
-                    className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition"
+                    className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
                   >
-                    Cancel Request
-                  </button>
-                  <button
-                    onClick={() => handleUserDetails(booking.userId)}
-                    className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition"
-                  >
-                    View User Details
+                    Cancel
                   </button>
                 </div>
+
+                {currentBookingId === booking._id && (
+                  <div className="mt-4 space-y-2">
+                    <input
+                      type="text"
+                      value={meetingLink}
+                      onChange={(e) => setMeetingLink(e.target.value)}
+                      placeholder="Enter Meeting Link"
+                      className="w-full px-4 py-2 border border-gray-300 rounded focus:outline-green-500"
+                    />
+                    <button
+                      onClick={handleSchedule}
+                      className="w-full flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+                    >
+                      <Video className="w-5 h-5" /> Schedule Meeting
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
         )}
-
-        {/* Schedule Modal */}
-        {modalOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg w-full max-w-md shadow-xl border border-green-200">
-              <h3 className="text-xl font-bold mb-4 text-[#2A1D7C]">Schedule Meeting</h3>
-              <input
-                type="text"
-                value={meetingLink}
-                onChange={(e) => setMeetingLink(e.target.value)}
-                placeholder="https://meet.example.com/..."
-                className="w-full border border-gray-300 px-3 py-2 rounded mb-4 focus:outline-green-500"
-              />
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setModalOpen(false)}
-                  className="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300"
-                >
-                  Close
-                </button>
-                <button
-                  onClick={handleSchedule}
-                  className="bg-[#2ADA71] text-white px-4 py-2 rounded hover:brightness-110 transition"
-                >
-                  Schedule
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* User Details Modal */}
-        {userModalOpen && selectedUser && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white w-full max-w-md p-6 rounded-lg shadow-xl">
-              <h3 className="text-xl font-bold mb-4 text-[#2A1D7C] text-center">User Details</h3>
-
-              {/* Profile Photo */}
-              {selectedUser.profilePhoto && (
-                <div className="flex justify-center mb-4">
-                  <img
-                    src={selectedUser.profilePhoto}
-                    alt="User Profile"
-                    className="w-24 h-24 rounded-full object-cover border border-green-300 shadow"
-                  />
-                </div>
-              )}
-
-              {/* User Info */}
-              <div className="space-y-2 text-gray-700">
-                <p><strong>Name:</strong> {selectedUser.name}</p>
-                <p><strong>Email:</strong> {selectedUser.email}</p>
-                <p><strong>Gender:</strong> {selectedUser.gender}</p>
-                <p><strong>Age:</strong> {selectedUser.age}</p>
-                <p><strong>Date of Birth:</strong> {new Date(selectedUser.dob).toLocaleDateString()}</p>
-                <p><strong>Phone:</strong> {selectedUser.phone}</p>
-                <p><strong>Address:</strong> {selectedUser.address}</p>
-              </div>
-
-              <div className="mt-6 flex justify-end">
-                <button
-                  onClick={() => setUserModalOpen(false)}
-                  className="bg-[#2ADA71] text-white px-4 py-2 rounded hover:brightness-110 transition"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-
       </div>
     </>
   );

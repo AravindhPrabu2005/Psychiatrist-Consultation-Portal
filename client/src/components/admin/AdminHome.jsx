@@ -11,7 +11,7 @@ const AdminHome = () => {
     <>
       <AdminNavbar />
       {/* Green-Themed Banner Section */}
-      <div className='flex flex-col-reverse md:flex-row items-center bg-green-100 rounded-lg px-4 sm:px-6 md:px-10 lg:px-12 my-10 mx-4 md:mx-auto shadow-lg overflow-hidden max-w-6xl min-h-[400px]'>
+      <div className='flex flex-col-reverse md:flex-row items-center pt-36 bg-green-100 rounded-lg px-4 sm:px-6 md:px-10 lg:px-12 my-10 mx-4 md:mx-auto shadow-lg overflow-hidden max-w-6xl min-h-[400px]'>
         {/* Text Section */}
         <div className='flex-1 text-center md:text-left py-8 md:py-12'>
           <div className='text-2xl sm:text-3xl md:text-4xl font-bold text-green-900 leading-tight'>

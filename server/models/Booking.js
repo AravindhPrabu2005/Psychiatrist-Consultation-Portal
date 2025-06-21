@@ -6,7 +6,9 @@ const bookingSchema = new mongoose.Schema({
   date: { type: String, required: true },
   time: { type: String, required: true },
   issue: { type: String, required: true },
-  status: { type: String, default: 'Pending' }
+  status: { type: String, default: 'Pending' },
+  meetingLink: { type: String, default: '' },
+  paid: { type: Boolean, default: false } // ✅ New field
 }, { timestamps: true });
 
 module.exports = mongoose.model('Booking', bookingSchema);

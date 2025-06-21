@@ -25,5 +25,67 @@ router.get('/bookings/admin/:adminId', async (req, res) => {
   }
 });
 
+router.post('/bookings/schedule/:bookingId', async (req, res) => {
+  try {
+    const { meetingLink } = req.body;
+    const updated = await Booking.findByIdAndUpdate(
+      req.params.bookingId,
+      {
+        status: 'Approved',
+        meetingLink
+      },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ error: 'Booking not found' });
+
+    res.json({ message: 'Booking approved and scheduled', booking: updated });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to approve booking' });
+  }
+});
+
+router.post('/bookings/cancel/:bookingId', async (req, res) => {
+  try {
+    const updated = await Booking.findByIdAndUpdate(
+      req.params.bookingId,
+      { status: 'Cancelled' },
+      { new: true }
+    );
+    if (!updated) return res.status(404).json({ error: 'Booking not found' });
+
+    res.json({ message: 'Booking cancelled successfully', booking: updated });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to cancel booking' });
+  }
+});
+
+router.post('/bookings/pay/:bookingId', async (req, res) => {
+  try {
+    const updated = await Booking.findByIdAndUpdate(
+      req.params.bookingId,
+      { paid: true },
+      { new: true }
+    );
+
+    if (!updated) return res.status(404).json({ error: 'Booking not found' });
+
+    res.json({ message: 'Payment successful', booking: updated });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update payment status' });
+  }
+});
+
+router.get('/bookings/user/:userId', async (req, res) => {
+  try {
+    const bookings = await Booking.find({ userId: req.params.userId }).sort({ createdAt: -1 });
+    res.json(bookings);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch bookings' });
+  }
+});
+
+
+
+
 
 module.exports = router;

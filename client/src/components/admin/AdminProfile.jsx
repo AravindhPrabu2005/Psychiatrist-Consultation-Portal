@@ -24,7 +24,7 @@ export default function AdminProfile() {
   return (
     <>
       <AdminNavbar />
-      <div className="max-w-3xl mx-auto px-4 py-10 text-gray-800">
+      <div className="max-w-3xl mx-auto px-4 py-10 pt-28 text-gray-800">
 
         <div className="flex flex-col items-center sm:flex-row sm:items-start gap-6">
           <img
