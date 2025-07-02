@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChevronDown, User, LogOut } from 'lucide-react';
+import { ChevronDown, User, LogOut, Menu } from 'lucide-react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import axiosInstance from '../../axiosInstance';
 
@@ -7,6 +7,7 @@ export default function AdminNavbar() {
   const id = localStorage.getItem("id");
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [admin, setAdmin] = useState(() => {
     const cached = localStorage.getItem("admin");
     return cached ? JSON.parse(cached) : null;
@@ -16,7 +17,6 @@ export default function AdminNavbar() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Background fetch to keep data fresh
   useEffect(() => {
     axiosInstance.get(`/admins/${id}`).then(res => {
       setAdmin(res.data);
@@ -26,7 +26,6 @@ export default function AdminNavbar() {
     });
   }, [id]);
 
-  // Handle click outside dropdown
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -34,9 +33,7 @@ export default function AdminNavbar() {
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   function handleLogout() {
@@ -44,20 +41,27 @@ export default function AdminNavbar() {
     navigate('/');
   }
 
-  function linkClass(path) {
+  function desktopLinkClass(path) {
     return `pb-1 ${location.pathname === path ? 'text-[#2A1D7C] border-b-2 border-[#2A1D7C]' : 'hover:text-[#2A1D7C]'}`;
   }
 
+  function mobileLinkClass(path) {
+    return `px-2 py-1 ${location.pathname === path ? 'border-l-4 border-[#2A1D7C] text-[#2A1D7C]' : 'hover:text-[#2A1D7C]'}`;
+  }
+
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 py-4 border-b shadow-sm bg-white">
-      <div className="flex items-center space-x-2">
+    <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 md:px-10 py-4 border-b shadow-sm bg-white">
+      <div className="flex items-center gap-4">
+        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden">
+          <Menu className="w-6 h-6 text-gray-700" />
+        </button>
         <img src="/logo.png" alt="Psycare" className="h-10" />
       </div>
 
-      <ul className="flex items-center space-x-10 text-[17px] font-medium">
-        <Link to="/admin/home" className={linkClass('/admin/home')}>HOME</Link>
-        <Link to="/admin/requests" className={linkClass('/admin/requests')}>REQUESTS</Link>
-        <Link to="/admin/appointments" className={linkClass('/admin/appointments')}>APPOINTMENTS</Link>
+      <ul className="hidden md:flex items-center space-x-10 text-[17px] font-medium">
+        <Link to="/admin/home" className={desktopLinkClass('/admin/home')}>HOME</Link>
+        <Link to="/admin/requests" className={desktopLinkClass('/admin/requests')}>REQUESTS</Link>
+        <Link to="/admin/appointments" className={desktopLinkClass('/admin/appointments')}>APPOINTMENTS</Link>
       </ul>
 
       <div className="relative" ref={dropdownRef}>
@@ -88,6 +92,16 @@ export default function AdminNavbar() {
           </div>
         )}
       </div>
+
+      {mobileMenuOpen && (
+        <div className="absolute top-16 left-0 right-0 bg-white border-b md:hidden shadow-md z-40">
+          <ul className="flex flex-col px-6 py-4 space-y-4 text-base font-medium text-gray-700">
+            <Link to="/admin/home" onClick={() => setMobileMenuOpen(false)} className={mobileLinkClass('/admin/home')}>HOME</Link>
+            <Link to="/admin/requests" onClick={() => setMobileMenuOpen(false)} className={mobileLinkClass('/admin/requests')}>REQUESTS</Link>
+            <Link to="/admin/appointments" onClick={() => setMobileMenuOpen(false)} className={mobileLinkClass('/admin/appointments')}>APPOINTMENTS</Link>
+          </ul>
+        </div>
+      )}
     </nav>
   );
 }

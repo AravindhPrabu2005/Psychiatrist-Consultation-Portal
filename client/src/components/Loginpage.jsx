@@ -37,13 +37,12 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
-      {/* Left Side Login Form */}
-      <div className="md:w-1/2 flex items-center justify-center px-6 md:px-16 py-12 bg-white">
-        <div className="w-full max-w-md space-y-6">
-          <div className="text-center">
-            <img src="/logo.png" alt="PsyCare" className="h-12 mx-auto mb-4" />
-            <h1 className="text-3xl font-bold text-[#2A1D7C]">Login</h1>
-            <p className="text-sm text-gray-500 mt-1">Access your PsyCare account</p>
+      <div className="w-full md:w-1/2 flex flex-1 items-center justify-center px-4 py-10">
+        <div className="w-full max-w-sm sm:max-w-md  rounded-2xl p-6 sm:p-8 ">
+          <div className="text-center mb-6">
+            <img src="/logo.png" alt="PsyCare" className="h-12 mx-auto mb-3" />
+            <h1 className="text-3xl font-extrabold text-[#2A1D7C]">Welcome Back</h1>
+            <p className="text-sm text-gray-500 mt-1">Log in to continue your journey</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -79,7 +78,7 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p className="text-center text-sm text-gray-600">
+          <p className="text-center text-sm text-gray-600 mt-4">
             Don’t have an account?{' '}
             <a href="/user/signup" className="text-[#2A1D7C] font-medium hover:underline">
               Sign up
@@ -88,8 +87,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Right Side Visual */}
-      <div className="md:w-1/2 bg-gradient-to-br from-[#d7f5e9] to-[#e6f8f1] flex flex-col items-center justify-center p-10">
+      <div className="hidden md:flex md:w-1/2 bg-gradient-to-br from-[#d7f5e9] to-[#e6f8f1] flex-col items-center justify-center p-10">
         <img
           src="/welcome.png"
           alt="Mental Health Illustration"
