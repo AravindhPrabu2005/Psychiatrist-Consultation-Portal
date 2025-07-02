@@ -1,10 +1,10 @@
 import axios from 'axios';
 
 const axiosInstance = axios.create({
-  baseURL: 'http://localhost:8000/',
+  baseURL: 'https://psycare.onrender.com',
 });
 
 export default axiosInstance;
 
 // https://psycare.onrender.com
-// http://localhost:8000/
+// http://localhost:8000
