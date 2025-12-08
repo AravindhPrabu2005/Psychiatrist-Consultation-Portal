@@ -17,11 +17,12 @@ jobs:
         working-directory: ./server
         run: npm install
 
-      - name: Create deployment zip
+      - name: Create deployment package
         run: |
           cd server
-          zip -r ../deployment.zip .
-          ls -al ..
+          zip -r ../deployment.zip ./*
+          cd ..
+          ls -l deployment.zip
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -32,8 +33,6 @@ jobs:
 
       - name: Deploy to AWS Lambda
         run: |
-          ZIP_PATH="$(pwd)/deployment.zip"
-          echo "Using ZIP file: $ZIP_PATH"
           aws lambda update-function-code \
             --function-name ${{ secrets.LAMBDA_FUNCTION_NAME }} \
-            --zip-file "fileb://${ZIP_PATH}"
+            --zip-file fileb://deployment.zip
