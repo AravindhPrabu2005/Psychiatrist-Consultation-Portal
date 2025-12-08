@@ -19,7 +19,7 @@ mongoose.connect(process.env.MONGO_URI, {
   useUnifiedTopology: true
 }).then(() => console.log('MongoDB connected')).catch((err) => console.log(err));
 
-app.get('/', (req, res) => {
+app.get('/test', (req, res) => {
   res.send("iruken da!");
 });
 app.use('/', authRoutes);
