@@ -18,8 +18,10 @@ jobs:
         run: npm install
 
       - name: Create deployment zip
-        working-directory: ./server
-        run: zip -r ../deployment.zip .
+        run: |
+          cd server
+          zip -r ../deployment.zip .
+          ls -al ..
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
