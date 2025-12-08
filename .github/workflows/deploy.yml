@@ -22,7 +22,7 @@ jobs:
           cd server
           zip -r ../deployment.zip .
           cd ..
-          ls -l deployment.zip
+          ls -lh deployment.zip
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -32,11 +32,9 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Deploy to AWS Lambda
-        working-directory: ${{ github.workspace }}       # ← THIS FIXES THE PATH
         run: |
-          ZIP_PATH="${{ github.workspace }}/deployment.zip"
-          echo "Using ZIP file: $ZIP_PATH"
-          ls -l ${{ github.workspace }}                  # DEBUG — shows ZIP exists
+          echo "Deploying from: ${{ github.workspace }}/deployment.zip"
+          ls -lh ${{ github.workspace }}/deployment.zip
           aws lambda update-function-code \
             --function-name ${{ secrets.LAMBDA_FUNCTION_NAME }} \
-            --zip-file "fileb://${ZIP_PATH}"
+            --zip-file fileb://${{ github.workspace }}/deployment.zip
