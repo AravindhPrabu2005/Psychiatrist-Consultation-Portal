@@ -20,7 +20,7 @@ jobs:
       - name: Create deployment zip
         run: |
           cd server
-          zip -r ../deployment.zip ./*
+          zip -r ../deployment.zip .
           cd ..
           ls -l deployment.zip
 
@@ -31,13 +31,12 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Upload ZIP to S3
+      - name: Deploy to AWS Lambda
+        working-directory: ${{ github.workspace }}       # ← THIS FIXES THE PATH
         run: |
-          aws s3 cp deployment.zip s3://lambda-deployments-yourname/deployment.zip
-
-      - name: Deploy Lambda from S3
-        run: |
+          ZIP_PATH="${{ github.workspace }}/deployment.zip"
+          echo "Using ZIP file: $ZIP_PATH"
+          ls -l ${{ github.workspace }}                  # DEBUG — shows ZIP exists
           aws lambda update-function-code \
             --function-name ${{ secrets.LAMBDA_FUNCTION_NAME }} \
-            --s3-bucket lambda-deployments-yourname \
-            --s3-key deployment.zip
+            --zip-file "fileb://${ZIP_PATH}"
