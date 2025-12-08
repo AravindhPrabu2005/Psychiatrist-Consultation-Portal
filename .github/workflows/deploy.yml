@@ -33,8 +33,6 @@ jobs:
 
       - name: Deploy to AWS Lambda
         run: |
-          echo "Deploying from: ${{ github.workspace }}/deployment.zip"
-          ls -lh ${{ github.workspace }}/deployment.zip
           aws lambda update-function-code \
             --function-name ${{ secrets.LAMBDA_FUNCTION_NAME }} \
-            --zip-file fileb://${{ github.workspace }}/deployment.zip
+            --zip-file fileb://deployment.zip
