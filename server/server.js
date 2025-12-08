@@ -28,5 +28,10 @@ app.use('/', bookingRoutes);
 
 // app.listen(port, () => console.log(`Server running on port ${port}`));
 module.exports.handler = serverless(app, {
-  binary: ['multipart/form-data', 'application/octet-stream', 'image/jpeg', 'image/png']
+  binary: [
+    'multipart/form-data',
+    'image/jpeg',
+    'image/png',
+    'application/octet-stream'
+  ]
 });
