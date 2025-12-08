@@ -1,8 +1,9 @@
 import axios from 'axios';
 
 const axiosInstance = axios.create({
-  baseURL: 'https://psycare.onrender.com',
+  baseURL: 'https://ebwvrxp1jg.execute-api.eu-north-1.amazonaws.com/dev',
 });
+
 
 export default axiosInstance;
 
