@@ -1,55 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Chat = require('../models/Chat');
 
-// Initialize Gemini AI
-const genAI = new GoogleGenerativeAI('AIzaSyBbgp_pX3q11oJWvAh1zuuiZiX95ITUsmc');
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// MongoDB Chat Model (assuming Mongoose is set up)
-const mongoose = require('mongoose');
-
-const chatSchema = new mongoose.Schema({
-  userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  chatId: {
-    type: String,
-    required: true,
-    unique: true
-  },
-  messages: [{
-    userRequest: {
-      type: String,
-      required: true
-    },
-    aiResponse: {
-      type: String,
-      required: true
-    },
-    timestamp: {
-      type: Date,
-      default: Date.now
-    }
-  }],
-  title: {
-    type: String,
-    default: 'New Conversation'
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
-  }
-});
-
-const Chat = mongoose.model('Chat', chatSchema);
-
-// Helper function to generate titles
 async function generateTitle(userMessage) {
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
@@ -62,7 +17,6 @@ async function generateTitle(userMessage) {
   }
 }
 
-// POST /api/chat/send - Send message and get AI response with Context
 router.post('/send', async (req, res) => {
   try {
     const { userId, chatId, message } = req.body;
@@ -74,14 +28,12 @@ router.post('/send', async (req, res) => {
       });
     }
 
-    // 1. Retrieve existing chat context if chatId is provided
     let chat;
     let history = [];
 
     if (chatId) {
       chat = await Chat.findOne({ chatId, userId });
       if (chat) {
-        // Format existing messages for Gemini History (last 20 messages)
         const previousMessages = chat.messages.slice(-20);
         history = previousMessages.flatMap(msg => [
           { role: 'user', parts: [{ text: msg.userRequest }] },
@@ -90,25 +42,21 @@ router.post('/send', async (req, res) => {
       }
     }
 
-    // 2. Initialize Model with system instructions
     const model = genAI.getGenerativeModel({ 
       model: 'gemini-2.5-flash'
     });
 
-    // System instruction
     const systemInstruction = `You are a compassionate and professional AI assistant for a psychology consultation service. 
 Provide supportive, empathetic responses while maintaining professional boundaries. 
 Always remind users that you're an AI assistant and encourage them to seek professional help for serious concerns.
 Keep responses concise, clear, and focused on mental health support.`;
 
-    // 3. Prepare full history with system instruction
     const fullHistory = [
       { role: 'user', parts: [{ text: systemInstruction }] },
       { role: 'model', parts: [{ text: 'Understood. I will act as a compassionate psychology consultation assistant.' }] },
       ...history
     ];
 
-    // 4. Start Chat Session with History
     const chatSession = model.startChat({
       history: fullHistory,
       generationConfig: {
@@ -117,15 +65,12 @@ Keep responses concise, clear, and focused on mental health support.`;
       },
     });
 
-    // 5. Send Message to AI
     const result = await chatSession.sendMessage(message);
     const aiResponse = result.response.text();
 
-    // 5. Save to Database
     const newChatId = chatId || `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     if (chat) {
-      // Update existing chat
       chat.messages.push({ 
         userRequest: message, 
         aiResponse: aiResponse,
@@ -133,7 +78,6 @@ Keep responses concise, clear, and focused on mental health support.`;
       });
       chat.updatedAt = new Date();
       
-      // Update title if it's a new conversation (runs in background)
       if (chat.messages.length <= 2 && chat.title === 'New Conversation') {
         generateTitle(message)
           .then(t => { 
@@ -145,7 +89,6 @@ Keep responses concise, clear, and focused on mental health support.`;
         await chat.save();
       }
     } else {
-      // Create new chat
       const title = await generateTitle(message);
       
       chat = new Chat({
@@ -181,7 +124,6 @@ Keep responses concise, clear, and focused on mental health support.`;
   }
 });
 
-// GET /api/chat/history/:userId - Get all chats for a user
 router.get('/history/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -215,7 +157,6 @@ router.get('/history/:userId', async (req, res) => {
   }
 });
 
-// GET /api/chat/:chatId - Get specific chat with all messages
 router.get('/:chatId', async (req, res) => {
   try {
     const { chatId } = req.params;
@@ -257,7 +198,6 @@ router.get('/:chatId', async (req, res) => {
   }
 });
 
-// DELETE /api/chat/:chatId - Delete a chat
 router.delete('/:chatId', async (req, res) => {
   try {
     const { chatId } = req.params;
@@ -293,7 +233,6 @@ router.delete('/:chatId', async (req, res) => {
   }
 });
 
-// POST /api/chat/new - Create a new chat
 router.post('/new', async (req, res) => {
   try {
     const { userId } = req.body;
