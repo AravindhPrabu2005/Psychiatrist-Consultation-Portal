@@ -15,6 +15,7 @@ import BookRequests from './components/admin/BookRequests';
 import Appointments from './components/admin/Appointments';
 import LandingPage from './components/Hero';
 import Approved from './components/user/Approved';
+import Chatbot from './components/user/Chatbot';
 
 
 const App = () => {
@@ -43,6 +44,7 @@ const App = () => {
                 <Route path="/user/contact" element={<ContactUs /> } />
                 <Route path="/user/book/:id" element={<BookingPage /> } />
                 <Route path="/user/approved" element={<Approved /> } />
+                <Route path='/user/chatbot' element={<Chatbot/> } />
                 
             </Routes>
         </Router>

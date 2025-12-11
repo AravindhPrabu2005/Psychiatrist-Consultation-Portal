@@ -7,5 +7,5 @@ const axiosInstance = axios.create({
 
 export default axiosInstance;
 
-// https://psycare.onrender.com
+// https://ebwvrxp1jg.execute-api.eu-north-1.amazonaws.com/dev
 // http://localhost:8000
