@@ -16,6 +16,8 @@ import Appointments from './components/admin/Appointments';
 import LandingPage from './components/Hero';
 import Approved from './components/user/Approved';
 import Chatbot from './components/user/Chatbot';
+import UserMessenger from './components/user/UserMessenger';
+import AdminMessenger from './components/admin/AdminMessenger';
 
 
 const App = () => {
@@ -35,6 +37,7 @@ const App = () => {
                 <Route path="/admin/slots" element={<SlotManagement /> } />
                 <Route path="/admin/requests" element={<BookRequests /> } />
                 <Route path="/admin/appointments" element={<Appointments /> } />
+                <Route path='/admin/messenger' element={<AdminMessenger/> } />
 
                 {/* user routes */}
                 <Route path="/user/home" element={<Userhome />} />
@@ -45,6 +48,7 @@ const App = () => {
                 <Route path="/user/book/:id" element={<BookingPage /> } />
                 <Route path="/user/approved" element={<Approved /> } />
                 <Route path='/user/chatbot' element={<Chatbot/> } />
+                <Route path='/user/messenger' element={<UserMessenger/> } />
                 
             </Routes>
         </Router>
