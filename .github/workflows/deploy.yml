@@ -22,7 +22,6 @@ jobs:
           cd server
           zip -r ../deployment.zip .
           cd ..
-          ls -l deployment.zip
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -31,13 +30,8 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Upload ZIP to S3
-        run: |
-          aws s3 cp deployment.zip s3://psycare-lambda-deployments/deployment.zip
-
-      - name: Deploy Lambda from S3
+      - name: Deploy ZIP directly to Lambda
         run: |
           aws lambda update-function-code \
             --function-name ${{ secrets.LAMBDA_FUNCTION_NAME }} \
-            --s3-bucket psycare-lambda-deployments \
-            --s3-key deployment.zip
+            --zip-file fileb://deployment.zip
