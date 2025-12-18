@@ -36,7 +36,7 @@ mongoose.connect(process.env.MONGO_URI)
   .catch((err) => console.log(err));
 
 app.get('/test', (req, res) => {
-  res.send("na iruken da!");
+  res.send("PsyCare! na iruken da dei!");
 });
 app.use('/', authRoutes);
 app.use('/', protectedRoutes);
