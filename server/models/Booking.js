@@ -6,9 +6,34 @@ const bookingSchema = new mongoose.Schema({
   date: { type: String, required: true },
   time: { type: String, required: true },
   issue: { type: String, required: true },
-  status: { type: String, default: 'Pending' },
   meetingLink: { type: String, default: '' },
-  paid: { type: Boolean, default: false } // ✅ New field
+  paymentStatus: { 
+    type: String, 
+    enum: ['pending', 'paid', 'failed', 'refunded'], 
+    default: 'pending' 
+  },
+  amount: { type: Number, required: true },
+  paymentId: { type: String },
+  transactionDate: { type: Date },
+  paid: { type: Boolean, default: false },
+  status: {
+    type: String,
+    enum: ['pending', 'Approved', 'completed', 'cancelled'],
+    default: 'pending'
+  }
 }, { timestamps: true });
+
+// Compound index to prevent duplicate bookings for the same doctor/date/time
+// Only applies when booking is paid and approved/pending
+bookingSchema.index(
+  { adminId: 1, date: 1, time: 1 },
+  { 
+    unique: true,
+    partialFilterExpression: { 
+      paid: true,
+      status: { $in: ['Approved', 'pending'] }
+    }
+  }
+);
 
 module.exports = mongoose.model('Booking', bookingSchema);

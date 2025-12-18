@@ -70,8 +70,8 @@ export default function AdminNavbar() {
 
       <ul className="hidden md:flex items-center space-x-10 text-[17px] font-medium">
         <Link to="/admin/home" className={desktopLinkClass('/admin/home')}>HOME</Link>
-        <Link to="/admin/requests" className={desktopLinkClass('/admin/requests')}>REQUESTS</Link>
         <Link to="/admin/appointments" className={desktopLinkClass('/admin/appointments')}>APPOINTMENTS</Link>
+        <Link to="/admin/patientCare" className={desktopLinkClass('/admin/patientCare')}>PATIENT CARE</Link>
       </ul>
 
       {/* Right side: Messenger Icon + Profile Dropdown */}

@@ -11,6 +11,8 @@ const protectedRoutes = require('./routes/protectedRoutes');
 const bookingRoutes = require('./routes/bookingRoutes')
 const chatbotRoutes = require('./routes/chatbotRoutes')
 const messengerRoutes = require('./routes/messengerRoutes')
+const patientCareRoutes = require('./routes/patientCare');
+const reviewRoutes = require('./routes/reviews');
 const messageHandler = require('./socket/messageHandler');
 
 const app = express();
@@ -41,15 +43,9 @@ app.use('/', protectedRoutes);
 app.use('/', bookingRoutes);
 app.use('/chat', chatbotRoutes );
 app.use("/messenger", messengerRoutes)
+app.use('/', patientCareRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 messageHandler(io);
 
-// server.listen(port, () => console.log(`Server running on port ${port}`));
-module.exports.handler = serverless(app, {
-  binary: [
-    'multipart/form-data',
-    'image/jpeg',
-    'image/png',
-    'application/octet-stream'
-  ]
-});
+server.listen(port, () => console.log(`Server running on port ${port}`));

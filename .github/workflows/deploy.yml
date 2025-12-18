@@ -1,4 +1,4 @@
-name: Deploy to AWS Lambda
+name: Deploy to EC2
 
 on:
   push:
@@ -13,25 +13,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Install backend dependencies
-        working-directory: ./server
-        run: npm install
-
-      - name: Create deployment zip
+      - name: Setup SSH
         run: |
-          cd server
-          zip -r ../deployment.zip .
-          cd ..
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2.pem
+          chmod 600 ~/.ssh/ec2.pem
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Deploy ZIP directly to Lambda
+      - name: Deploy on EC2
         run: |
-          aws lambda update-function-code \
-            --function-name ${{ secrets.LAMBDA_FUNCTION_NAME }} \
-            --zip-file fileb://deployment.zip
+          ssh -i ~/.ssh/ec2.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+            cd psychiatrist-consultation-portal
+            git pull origin main
+            docker compose down
+            docker compose up -d --build
+          EOF

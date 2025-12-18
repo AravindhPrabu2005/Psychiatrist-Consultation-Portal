@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, Fragment } from 'react';
-import { Send, Plus, MessageSquare, Menu, X, Loader2, Trash2 } from 'lucide-react';
+import { Send, Plus, MessageSquare, Menu, X, Loader2, Trash2, Bot, User, Search, PanelLeftClose, PanelLeft } from 'lucide-react';
 import UserNavbar from './UserNavbar';
 import axiosInstance from '../../axiosInstance';
 
@@ -8,6 +8,8 @@ const Chatbot = () => {
   const [inputValue, setInputValue] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [pastChats, setPastChats] = useState([]);
+  const [filteredChats, setFilteredChats] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [currentChatId, setCurrentChatId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
@@ -70,12 +72,25 @@ const Chatbot = () => {
     fetchChatHistory();
   }, []);
 
+  // Filter chats based on search query
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredChats(pastChats);
+    } else {
+      const filtered = pastChats.filter(chat =>
+        chat.title.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredChats(filtered);
+    }
+  }, [searchQuery, pastChats]);
+
   const fetchChatHistory = async () => {
     try {
       setLoadingHistory(true);
       const response = await axiosInstance.get(`/chat/history/${userId}`);
       if (response.data.success) {
         setPastChats(response.data.data);
+        setFilteredChats(response.data.data);
       }
     } catch (error) {
       console.error('Error fetching chat history:', error);
@@ -239,50 +254,105 @@ const Chatbot = () => {
   return (
     <>
       <UserNavbar />
-      <div className="flex h-screen pt-16 bg-white">
-        <div className={`${sidebarOpen ? 'w-64' : 'w-0'} bg-gray-50 border-r border-gray-200 flex flex-col transition-all duration-300 overflow-hidden`}>
-          <div className="p-4 border-b border-gray-200">
+      <div className="flex h-screen pt-16 bg-gray-50">
+        {/* Sidebar */}
+        <div className={`${sidebarOpen ? 'w-72' : 'w-0'} bg-white border-r border-gray-200 flex flex-col transition-all duration-300 overflow-hidden shadow-sm`}>
+          <div className="p-4 border-b border-gray-100">
             <button
               onClick={handleNewChat}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-[#2ADA71] to-[#25c063] text-white rounded-lg hover:shadow-md transition-all font-medium"
             >
               <Plus size={18} />
-              <span className="font-medium text-gray-700">New Chat</span>
+              <span>New Conversation</span>
             </button>
           </div>
 
+          {/* Search Bar */}
+          <div className="px-4 py-3 border-b border-gray-100">
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
+              <input
+                type="text"
+                placeholder="Search conversations..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2ADA71] focus:border-transparent transition-all"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2 top-2 p-1 hover:bg-gray-200 rounded transition-colors"
+                >
+                  <X size={14} className="text-gray-400" />
+                </button>
+              )}
+            </div>
+          </div>
+
           <div className="flex-1 overflow-y-auto p-3">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-2">
-              Past Chats
-            </h3>
+            <div className="flex items-center justify-between px-3 mb-3">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                Recent Chats
+              </h3>
+              {searchQuery && (
+                <span className="text-xs text-gray-500">
+                  {filteredChats.length} result{filteredChats.length !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+            
             {loadingHistory ? (
               <div className="flex justify-center items-center py-8">
-                <Loader2 className="animate-spin text-gray-400" size={24} />
+                <Loader2 className="animate-spin text-gray-300" size={24} />
               </div>
-            ) : pastChats.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-4">No past chats</p>
+            ) : filteredChats.length === 0 ? (
+              <div className="text-center py-8 px-4">
+                <MessageSquare className="mx-auto text-gray-300 mb-2" size={32} />
+                <p className="text-sm text-gray-400">
+                  {searchQuery ? 'No matching conversations' : 'No conversations yet'}
+                </p>
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="text-xs text-[#2ADA71] hover:underline mt-2"
+                  >
+                    Clear search
+                  </button>
+                )}
+              </div>
             ) : (
-              pastChats.map((chat) => (
+              filteredChats.map((chat) => (
                 <button
                   key={chat.id}
                   onClick={() => loadChat(chat.id)}
-                  className={`w-full text-left px-3 py-3 rounded-lg hover:bg-gray-200 transition-colors mb-1 group relative ${
-                    currentChatId === chat.id ? 'bg-gray-200' : ''
+                  className={`w-full text-left px-3 py-2.5 rounded-lg transition-all mb-1.5 group relative ${
+                    currentChatId === chat.id 
+                      ? 'bg-green-50 border border-green-100' 
+                      : 'hover:bg-gray-50 border border-transparent'
                   }`}
                 >
-                  <div className="flex items-start gap-2">
-                    <MessageSquare size={16} className="text-gray-400 mt-1 flex-shrink-0" />
+                  <div className="flex items-start gap-2.5">
+                    <MessageSquare 
+                      size={16} 
+                      className={`mt-0.5 flex-shrink-0 ${
+                        currentChatId === chat.id ? 'text-[#2ADA71]' : 'text-gray-400'
+                      }`} 
+                    />
                     <div className="flex-1 min-w-0 pr-6">
-                      <p className="text-sm text-gray-800 truncate">{chat.title}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">
+                      <p className={`text-sm truncate ${
+                        currentChatId === chat.id ? 'text-gray-900 font-medium' : 'text-gray-700'
+                      }`}>
+                        {chat.title}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-0.5">
                         {formatDate(chat.updatedAt)}
                       </p>
                     </div>
                     <button
                       onClick={(e) => handleDeleteChat(chat.id, e)}
-                      className="absolute right-2 top-3 opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 rounded transition-all"
+                      className="absolute right-2 top-2.5 opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-50 rounded transition-all"
                     >
-                      <Trash2 size={14} className="text-red-500" />
+                      <Trash2 size={14} className="text-red-400 hover:text-red-500" />
                     </button>
                   </div>
                 </button>
@@ -290,34 +360,52 @@ const Chatbot = () => {
             )}
           </div>
 
-          <div className="p-4 border-t border-gray-200">
-            <p className="text-xs text-gray-500 text-center">Psychology Consultation Bot</p>
+          <div className="p-4 border-t border-gray-100">
+            <div className="flex items-center gap-2 text-gray-400">
+              <Bot size={16} />
+              <p className="text-xs">AI Psychology Assistant</p>
+            </div>
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col">
-          <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3">
+        {/* Main Chat Area */}
+        <div className="flex-1 flex flex-col bg-white">
+          {/* Header */}
+          <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center gap-3 shadow-sm">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
+              {sidebarOpen ? (
+                <PanelLeftClose size={20} className="text-gray-600" />
+              ) : (
+                <PanelLeft size={20} className="text-gray-600" />
+              )}
             </button>
-            <h1 className="text-lg font-semibold text-gray-800">Medical AI Assistant</h1>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-gradient-to-r from-[#2ADA71] to-[#25c063] rounded-full flex items-center justify-center">
+                <Bot className="text-white" size={20} />
+              </div>
+              <div>
+                <h1 className="text-base font-semibold text-gray-800">AI Medical Assistant</h1>
+                <p className="text-xs text-gray-500">Always here to help</p>
+              </div>
+            </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-4 py-6">
-            <div className="max-w-3xl mx-auto space-y-6">
+          {/* Messages Area */}
+          <div className="flex-1 overflow-y-auto px-6 py-6 bg-gray-50">
+            <div className="max-w-4xl mx-auto space-y-6">
               {messages.length === 0 && !loading && (
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <MessageSquare className="text-blue-500" size={32} />
+                <div className="text-center py-16">
+                  <div className="w-20 h-20 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-green-100">
+                    <Bot className="text-[#2ADA71]" size={40} />
                   </div>
                   <h2 className="text-xl font-semibold text-gray-800 mb-2">
-                    Welcome to Psychology Consultation
+                    Welcome to Your AI Psychology Assistant
                   </h2>
-                  <p className="text-gray-500">
-                    Start a conversation by typing your message below
+                  <p className="text-gray-500 max-w-md mx-auto">
+                    I'm here to provide guidance and support. Start a conversation by typing your message below.
                   </p>
                 </div>
               )}
@@ -327,20 +415,24 @@ const Chatbot = () => {
                   key={message.id}
                   className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className={`flex gap-3 max-w-2xl ${message.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      message.sender === 'user' ? 'bg-gray-700' : 'bg-blue-500'
+                  <div className={`flex gap-3 max-w-3xl ${message.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      message.sender === 'user' 
+                        ? 'bg-gray-700' 
+                        : 'bg-gradient-to-r from-[#2ADA71] to-[#25c063]'
                     }`}>
-                      <span className="text-white text-sm font-medium">
-                        {message.sender === 'user' ? 'U' : 'AI'}
-                      </span>
+                      {message.sender === 'user' ? (
+                        <User className="text-white" size={18} />
+                      ) : (
+                        <Bot className="text-white" size={18} />
+                      )}
                     </div>
-                    <div className={`rounded-2xl px-4 py-3 ${
+                    <div className={`rounded-2xl px-5 py-3 shadow-sm ${
                       message.sender === 'user' 
                         ? 'bg-gray-700 text-white' 
-                        : 'bg-gray-100 text-gray-800'
+                        : 'bg-white text-gray-800 border border-gray-100'
                     }`}>
-                      <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                      <div className="text-sm leading-relaxed">
                         {formatMessage(message.text)}
                       </div>
                     </div>
@@ -350,12 +442,15 @@ const Chatbot = () => {
               
               {loading && (
                 <div className="flex justify-start">
-                  <div className="flex gap-3 max-w-2xl">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-blue-500">
-                      <span className="text-white text-sm font-medium">AI</span>
+                  <div className="flex gap-3 max-w-3xl">
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-r from-[#2ADA71] to-[#25c063]">
+                      <Bot className="text-white" size={18} />
                     </div>
-                    <div className="rounded-2xl px-4 py-3 bg-gray-100">
-                      <Loader2 className="animate-spin text-gray-500" size={20} />
+                    <div className="rounded-2xl px-5 py-3 bg-white border border-gray-100 shadow-sm">
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="animate-spin text-[#2ADA71]" size={18} />
+                        <span className="text-sm text-gray-500">Thinking...</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -365,10 +460,11 @@ const Chatbot = () => {
             </div>
           </div>
 
-          <div className="border-t border-gray-200 bg-white px-4 py-4">
-            <div className="max-w-3xl mx-auto">
+          {/* Input Area */}
+          <div className="border-t border-gray-200 bg-white px-6 py-4 shadow-sm">
+            <div className="max-w-4xl mx-auto">
               <div className="flex gap-3 items-end">
-                <div className="flex-1 bg-white border border-gray-300 rounded-2xl shadow-sm focus-within:border-gray-400 transition-colors">
+                <div className="flex-1 bg-gray-50 border border-gray-200 rounded-xl focus-within:border-[#2ADA71] focus-within:bg-white transition-all">
                   <textarea
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
@@ -378,7 +474,7 @@ const Chatbot = () => {
                     className="w-full px-4 py-3 bg-transparent resize-none outline-none text-gray-800 placeholder-gray-400 disabled:opacity-50"
                     rows="1"
                     style={{
-                      minHeight: '44px',
+                      minHeight: '48px',
                       maxHeight: '200px'
                     }}
                   />
@@ -388,7 +484,7 @@ const Chatbot = () => {
                   disabled={!inputValue.trim() || loading}
                   className={`p-3 rounded-xl transition-all ${
                     inputValue.trim() && !loading
-                      ? 'bg-gray-800 hover:bg-gray-700 text-white'
+                      ? 'bg-gradient-to-r from-[#2ADA71] to-[#25c063] hover:shadow-lg text-white'
                       : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   }`}
                 >
@@ -399,8 +495,9 @@ const Chatbot = () => {
                   )}
                 </button>
               </div>
-              <p className="text-xs text-gray-500 text-center mt-3">
-                This AI assistant provides general information. For medical emergencies, please contact emergency services.
+              <p className="text-xs text-gray-400 text-center mt-3 flex items-center justify-center gap-1">
+                <span className="inline-block w-1.5 h-1.5 bg-gray-300 rounded-full"></span>
+                This AI provides general information. For emergencies, contact emergency services immediately.
               </p>
             </div>
           </div>

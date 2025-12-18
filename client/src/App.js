@@ -18,6 +18,8 @@ import Approved from './components/user/Approved';
 import Chatbot from './components/user/Chatbot';
 import UserMessenger from './components/user/UserMessenger';
 import AdminMessenger from './components/admin/AdminMessenger';
+import AppointmentHistory from './components/admin/AppointmentHistory';
+import PatientCare from './components/admin/PatientCare';
 
 
 const App = () => {
@@ -38,6 +40,8 @@ const App = () => {
                 <Route path="/admin/requests" element={<BookRequests /> } />
                 <Route path="/admin/appointments" element={<Appointments /> } />
                 <Route path='/admin/messenger' element={<AdminMessenger/> } />
+                <Route path='/admin/history' element={<AppointmentHistory/> } />
+                <Route path='/admin/patientCare' element={<PatientCare/> } />
 
                 {/* user routes */}
                 <Route path="/user/home" element={<Userhome />} />

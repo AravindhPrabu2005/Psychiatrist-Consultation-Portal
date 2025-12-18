@@ -73,7 +73,7 @@ export default function UserNavbar() {
         <Link to="/user/doctors" className={desktopLinkClass('/user/doctors')}>ALL DOCTORS</Link>
         <Link to="/user/approved" className={desktopLinkClass('/user/approved')}>APPOINTMENTS</Link>
         <Link to="/user/chatbot" className={desktopLinkClass('/user/chatbot')}>AI CONSULT</Link>
-        <Link to="/user/contact" className={desktopLinkClass('/user/contact')}>CONTACT</Link>
+        {/* <Link to="/user/contact" className={desktopLinkClass('/user/contact')}>CONTACT</Link> */}
       </ul>
 
       {/* Right side: Messenger Icon + Profile Dropdown */}
