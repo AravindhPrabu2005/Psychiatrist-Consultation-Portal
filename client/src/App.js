@@ -20,6 +20,7 @@ import UserMessenger from './components/user/UserMessenger';
 import AdminMessenger from './components/admin/AdminMessenger';
 import AppointmentHistory from './components/admin/AppointmentHistory';
 import PatientCare from './components/admin/PatientCare';
+import BookingSuccess from './components/user/BookingSuccess';
 
 
 const App = () => {
@@ -53,6 +54,7 @@ const App = () => {
                 <Route path="/user/approved" element={<Approved /> } />
                 <Route path='/user/chatbot' element={<Chatbot/> } />
                 <Route path='/user/messenger' element={<UserMessenger/> } />
+                <Route path="/booking-success" element={<BookingSuccess />} />
                 
             </Routes>
         </Router>

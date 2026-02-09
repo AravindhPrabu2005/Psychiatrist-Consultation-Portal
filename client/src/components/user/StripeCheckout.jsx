@@ -5,7 +5,7 @@ import {
   Clock, 
   Info, 
   X, 
-  Shield, 
+  Shield,
   AlertTriangle,
   Star,
   ThumbsUp,
@@ -17,6 +17,7 @@ import {
 import axiosInstance from '../../axiosInstance';
 import UserNavbar from './UserNavbar';
 import Footer from '../Footer';
+import StripeCheckout from './StripeCheckout';
 
 export default function BookAppointment() {
   const { id } = useParams();
@@ -27,8 +28,10 @@ export default function BookAppointment() {
   const [selectedTime, setSelectedTime] = useState(null);
   const [issue, setIssue] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showPayment, setShowPayment] = useState(false);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [bookedSlots, setBookedSlots] = useState([]);
+  const [bookingData, setBookingData] = useState(null);
   
   const [reviews, setReviews] = useState([]);
   const [stats, setStats] = useState(null);
@@ -160,7 +163,7 @@ export default function BookAppointment() {
       const userId = localStorage.getItem('id');
       
       // Create booking first
-      const bookingResponse = await axiosInstance.post('/api/booking', {
+      const response = await axiosInstance.post('/api/booking', {
         userId: userId,
         adminId: id,
         date: formattedDate,
@@ -169,22 +172,24 @@ export default function BookAppointment() {
         amount: 500
       });
 
-      // Create Stripe Checkout Session
-      const checkoutResponse = await axiosInstance.post('/api/create-checkout-session', {
-        bookingId: bookingResponse.data.bookingId,
+      // Store booking data for payment
+      setBookingData({
+        bookingId: response.data.bookingId,
         amount: 500,
         userId: userId,
         adminId: id,
         date: formattedDate,
         time: selectedTime,
+        doctorName: `Dr. ${admin.name}`,
+        patientName: localStorage.getItem('name') || 'Patient',
+        patientEmail: localStorage.getItem('email') || '',
       });
 
-      // Redirect to Stripe Checkout
-      window.location.href = checkoutResponse.data.url;
-
+      setShowPayment(true);
+      setPaymentProcessing(false);
     } catch (error) {
       setPaymentProcessing(false);
-      console.error('Checkout error:', error);
+      console.error('Booking error:', error);
       
       if (error.response?.status === 409) {
         alert('⚠️ Sorry! This time slot was just booked by someone else. Please select another time slot.');
@@ -192,14 +197,50 @@ export default function BookAppointment() {
         setSelectedTime(null);
         fetchBookedSlots();
       } else {
-        alert('Failed to create checkout session. Please try again.');
+        alert('Booking failed. Please try again.');
       }
     }
   };
 
+  const handlePaymentSuccess = (paymentIntentId) => {
+    setPaymentProcessing(true);
+    
+    // Poll for payment confirmation
+    const checkPaymentStatus = setInterval(async () => {
+      try {
+        const response = await axiosInstance.get(`/api/payment-status/${bookingData.bookingId}`);
+        
+        if (response.data.paid && response.data.status === 'Approved') {
+          clearInterval(checkPaymentStatus);
+          setPaymentProcessing(false);
+          setIsModalOpen(false);
+          setShowPayment(false);
+          
+          alert('✅ Payment successful! Your booking is confirmed. The doctor will add the meeting link soon.');
+          
+          setIssue('');
+          setSelectedTime(null);
+          setSelectedDateIndex(0);
+          setBookingData(null);
+          
+          navigate('/user/approved');
+        }
+      } catch (error) {
+        console.error('Error checking payment status:', error);
+      }
+    }, 2000);
+
+    setTimeout(() => {
+      clearInterval(checkPaymentStatus);
+      setPaymentProcessing(false);
+    }, 30000);
+  };
+
   const closeModal = () => {
     setIsModalOpen(false);
+    setShowPayment(false);
     setPaymentProcessing(false);
+    setBookingData(null);
   };
 
   const markHelpful = async (reviewId) => {
@@ -520,99 +561,83 @@ export default function BookAppointment() {
         </div>
       </div>
 
-      {/* BOOKING MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl w-full max-w-md shadow-2xl relative">
-            <div className="p-6">
-              <button 
-                onClick={closeModal} 
-                className="absolute top-4 right-4 text-gray-500 hover:text-black transition"
-                disabled={paymentProcessing}
-              >
-                <X size={20} />
-              </button>
-              
-              <h2 className="text-xl font-bold mb-6 text-gray-800">Confirm Booking</h2>
-
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-2 text-gray-700">Doctor</label>
-                <div className="px-4 py-3 bg-gray-50 rounded-lg text-sm text-gray-800 border border-gray-200">
-                  Dr. {admin.name} - {admin.specialization}
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-2 text-gray-700">Selected Date</label>
-                <div className="px-4 py-3 bg-gray-50 rounded-lg text-sm text-gray-800 border border-gray-200">
-                  {formattedDate}
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-2 text-gray-700">Selected Time</label>
-                <div className="px-4 py-3 bg-gray-50 rounded-lg text-sm text-gray-800 border border-gray-200">
-                  {selectedTime}
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-2 text-gray-700">Consultation Fee</label>
-                <div className="px-4 py-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg text-sm border-2 border-green-200">
-                  <span className="text-2xl font-bold text-green-600">₹500</span>
-                </div>
-              </div>
-
-              <div className="mb-6">
-                <label className="block text-sm font-medium mb-2 text-gray-700">Describe your issue *</label>
-                <textarea
-                  rows="4"
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent resize-none"
-                  placeholder="e.g. Feeling anxious lately, having trouble sleeping..."
-                  value={issue}
-                  onChange={e => setIssue(e.target.value)}
-                  disabled={paymentProcessing}
-                ></textarea>
-              </div>
-
-              {paymentProcessing && (
-                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-3">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                  <p className="text-sm text-blue-700">Redirecting to secure payment...</p>
-                </div>
-              )}
-
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={closeModal}
-                  className="px-5 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-sm font-medium transition"
+            {!showPayment ? (
+              <div className="p-6">
+                <button 
+                  onClick={closeModal} 
+                  className="absolute top-4 right-4 text-gray-500 hover:text-black transition"
                   disabled={paymentProcessing}
                 >
-                  Cancel
+                  <X size={20} />
                 </button>
-                <button
-                  onClick={handleProceedToPayment}
-                  disabled={!issue.trim() || paymentProcessing}
-                  className={`px-5 py-2.5 rounded-lg text-white text-sm font-medium transition flex items-center gap-2 ${
-                    issue.trim() && !paymentProcessing
-                      ? 'bg-[#2ADA71] hover:bg-[#25c063]' 
-                      : 'bg-gray-400 cursor-not-allowed'
-                  }`}
-                >
-                  {paymentProcessing ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      Redirecting...
-                    </>
-                  ) : (
-                    <>
-                      <Shield size={16} />
-                      Proceed to Payment
-                    </>
-                  )}
-                </button>
+                
+                <h2 className="text-xl font-bold mb-6 text-gray-800">Confirm Booking</h2>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-2 text-gray-700">Doctor</label>
+                  <div className="px-4 py-3 bg-gray-50 rounded-lg text-sm text-gray-800 border border-gray-200">
+                    Dr. {admin.name} - {admin.specialization}
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-2 text-gray-700">Selected Date</label>
+                  <div className="px-4 py-3 bg-gray-50 rounded-lg text-sm text-gray-800 border border-gray-200">
+                    {formattedDate}
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-2 text-gray-700">Selected Time</label>
+                  <div className="px-4 py-3 bg-gray-50 rounded-lg text-sm text-gray-800 border border-gray-200">
+                    {selectedTime}
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <label className="block text-sm font-medium mb-2 text-gray-700">Describe your issue *</label>
+                  <textarea
+                    rows="4"
+                    className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent resize-none"
+                    placeholder="e.g. Feeling anxious lately, having trouble sleeping..."
+                    value={issue}
+                    onChange={e => setIssue(e.target.value)}
+                  ></textarea>
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={closeModal}
+                    className="px-5 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-sm font-medium transition"
+                    disabled={paymentProcessing}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleProceedToPayment}
+                    disabled={!issue.trim() || paymentProcessing}
+                    className={`px-5 py-2.5 rounded-lg text-white text-sm font-medium transition ${
+                      issue.trim() && !paymentProcessing
+                        ? 'bg-[#2ADA71] hover:bg-[#25c063]' 
+                        : 'bg-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    {paymentProcessing ? 'Creating...' : 'Proceed to Payment'}
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : (
+              bookingData && (
+                <StripeCheckout
+                  bookingData={bookingData}
+                  onSuccess={handlePaymentSuccess}
+                  onCancel={closeModal}
+                />
+              )
+            )}
           </div>
         </div>
       )}

@@ -2,15 +2,14 @@ const express = require('express');
 const router = express.Router();
 const Booking = require('../models/Booking');
 const mongoose = require('mongoose');
-const { v4: uuidv4 } = require('uuid');
 
-// Create new booking with payment and collision prevention
+// Create new booking - UPDATED for Stripe
 router.post('/api/booking', async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    const { userId, adminId, date, time, issue, paymentStatus, amount } = req.body;
+    const { userId, adminId, date, time, issue, amount } = req.body;
     
     if (!userId || !adminId || !date || !time || !issue) {
       await session.abortTransaction();
@@ -18,15 +17,13 @@ router.post('/api/booking', async (req, res) => {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
-    // Check if this slot is already booked (within transaction)
+    // Check if slot is already booked
     const existingBooking = await Booking.findOne({
       adminId,
       date,
       time,
-      $or: [
-        { status: 'Approved', paid: true },
-        { status: 'pending', paid: true }
-      ]
+      paid: true,
+      status: { $in: ['Approved', 'pending'] }
     }).session(session);
 
     if (existingBooking) {
@@ -38,30 +35,28 @@ router.post('/api/booking', async (req, res) => {
       });
     }
 
-    // Create booking with lock
+    // Create booking with pending payment
     const newBooking = new Booking({ 
       userId, 
       adminId, 
       date, 
       time, 
       issue,
-      paymentStatus: paymentStatus || 'pending',
       amount: amount || 500,
-      paymentId: `pay_${uuidv4()}`,
-      transactionDate: paymentStatus === 'paid' ? new Date() : null,
-      paid: paymentStatus === 'paid',
-      status: paymentStatus === 'paid' ? 'Approved' : 'pending'
+      paymentStatus: 'pending',
+      paid: false,
+      status: 'pending'
     });
 
     await newBooking.save({ session });
     
-    // Commit the transaction
     await session.commitTransaction();
     session.endSession();
     
     res.status(201).json({ 
-      message: 'Booking confirmed successfully', 
-      booking: newBooking 
+      message: 'Booking created. Please proceed with payment.', 
+      booking: newBooking,
+      bookingId: newBooking._id
     });
   } catch (error) {
     await session.abortTransaction();
@@ -127,7 +122,7 @@ router.get('/bookings/user/:userId', async (req, res) => {
   }
 });
 
-// Get single booking by ID (for viewing meeting link)
+// Get single booking by ID
 router.get('/bookings/:bookingId', async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.bookingId)
@@ -145,7 +140,7 @@ router.get('/bookings/:bookingId', async (req, res) => {
   }
 });
 
-// Update booking status (approve/reject/cancel)
+// Update booking status
 router.patch('/bookings/:bookingId/status', async (req, res) => {
   try {
     const { bookingId } = req.params;
@@ -176,7 +171,7 @@ router.patch('/bookings/:bookingId/status', async (req, res) => {
   }
 });
 
-// Check slot availability before booking (optional - for real-time checking)
+// Check slot availability
 router.post('/bookings/check-availability', async (req, res) => {
   try {
     const { adminId, date, time } = req.body;
@@ -189,10 +184,8 @@ router.post('/bookings/check-availability', async (req, res) => {
       adminId,
       date,
       time,
-      $or: [
-        { status: 'Approved', paid: true },
-        { status: 'pending', paid: true }
-      ]
+      paid: true,
+      status: { $in: ['Approved', 'pending'] }
     });
 
     res.json({ 

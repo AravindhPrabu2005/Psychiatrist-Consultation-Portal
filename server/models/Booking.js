@@ -7,6 +7,7 @@ const bookingSchema = new mongoose.Schema({
   time: { type: String, required: true },
   issue: { type: String, required: true },
   meetingLink: { type: String, default: '' },
+  
   paymentStatus: { 
     type: String, 
     enum: ['pending', 'paid', 'failed', 'refunded'], 
@@ -16,6 +17,12 @@ const bookingSchema = new mongoose.Schema({
   paymentId: { type: String },
   transactionDate: { type: Date },
   paid: { type: Boolean, default: false },
+  
+  //Stripe-specific fields 
+  paymentIntentId: { type: String, unique: true, sparse: true },
+  stripeClientSecret: { type: String },
+  lastPaymentError: { type: String },
+  
   status: {
     type: String,
     enum: ['pending', 'Approved', 'completed', 'cancelled'],
@@ -23,8 +30,7 @@ const bookingSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// Compound index to prevent duplicate bookings for the same doctor/date/time
-// Only applies when booking is paid and approved/pending
+// KEEPING YOUR EXISTING INDEX - No changes!
 bookingSchema.index(
   { adminId: 1, date: 1, time: 1 },
   { 
