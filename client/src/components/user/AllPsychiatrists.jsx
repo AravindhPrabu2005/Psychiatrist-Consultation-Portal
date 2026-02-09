@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import axiosInstance from '../../axiosInstance';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -20,13 +20,18 @@ export default function AllPsychiatrists() {
   const [admins, setAdmins] = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [nameSearch, setNameSearch] = useState('');
+  const [inputValue, setInputValue] = useState(''); // For immediate UI feedback
   const [specializationSearch, setSpecializationSearch] = useState('');
+  const [specializationInputValue, setSpecializationInputValue] = useState('');
   const [selectedSpecialization, setSelectedSpecialization] = useState('all');
   const [sortBy, setSortBy] = useState('name');
   const [loading, setLoading] = useState(true);
-  const [doctorStats, setDoctorStats] = useState({}); // Store ratings
+  const [searching, setSearching] = useState(false);
+  const [doctorStats, setDoctorStats] = useState({});
+  const debounceTimerRef = useRef(null);
   const navigate = useNavigate();
 
+  // Initial fetch
   useEffect(() => {
     const fetchAdmins = async () => {
       try {
@@ -57,7 +62,10 @@ export default function AllPsychiatrists() {
     fetchAdmins();
   }, []);
 
-  useEffect(() => {
+  // Debounced filter function
+  const applyFilters = useCallback(() => {
+    setSearching(true);
+    
     let filteredData = admins.filter((admin) =>
       admin.name.toLowerCase().includes(nameSearch.toLowerCase()) &&
       admin.specialization?.toLowerCase().includes(specializationSearch.toLowerCase())
@@ -84,13 +92,65 @@ export default function AllPsychiatrists() {
     }
 
     setFiltered(filteredData);
+    setSearching(false);
   }, [nameSearch, specializationSearch, selectedSpecialization, sortBy, admins, doctorStats]);
+
+  // Debounce wrapper
+  const debouncedFilter = useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    
+    setSearching(true);
+    debounceTimerRef.current = setTimeout(() => {
+      applyFilters();
+    }, 300); // 300ms delay
+  }, [applyFilters]);
+
+  // Trigger debounced filter on search changes
+  useEffect(() => {
+    if (!loading) {
+      debouncedFilter();
+    }
+  }, [nameSearch, specializationSearch, loading, debouncedFilter]);
+
+  // Trigger immediate filter on dropdown/sort changes (no debounce needed)
+  useEffect(() => {
+    if (!loading) {
+      applyFilters();
+    }
+  }, [selectedSpecialization, sortBy, loading, applyFilters]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Handle name search with debouncing
+  const handleNameSearchChange = (e) => {
+    const value = e.target.value;
+    setInputValue(value);
+    setNameSearch(value);
+  };
+
+  // Handle specialization search with debouncing
+  const handleSpecializationSearchChange = (e) => {
+    const value = e.target.value;
+    setSpecializationInputValue(value);
+    setSpecializationSearch(value);
+  };
 
   // Get unique specializations
   const specializations = [...new Set(admins.map(a => a.specialization).filter(Boolean))];
 
   const clearFilters = () => {
+    setInputValue('');
     setNameSearch('');
+    setSpecializationInputValue('');
     setSpecializationSearch('');
     setSelectedSpecialization('all');
     setSortBy('name');
@@ -122,12 +182,17 @@ export default function AllPsychiatrists() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div className="relative">
                 <Search className="absolute left-4 top-3.5 text-gray-400" size={20} />
+                {searching && (
+                  <div className="absolute right-4 top-3.5">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#2ADA71]"></div>
+                  </div>
+                )}
                 <input
                   type="text"
                   placeholder="Search by doctor name..."
-                  value={nameSearch}
-                  onChange={(e) => setNameSearch(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#2ADA71] focus:border-transparent transition"
+                  value={inputValue}
+                  onChange={handleNameSearchChange}
+                  className="w-full pl-12 pr-12 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#2ADA71] focus:border-transparent transition"
                 />
               </div>
 
@@ -136,8 +201,8 @@ export default function AllPsychiatrists() {
                 <input
                   type="text"
                   placeholder="Search by specialization..."
-                  value={specializationSearch}
-                  onChange={(e) => setSpecializationSearch(e.target.value)}
+                  value={specializationInputValue}
+                  onChange={handleSpecializationSearchChange}
                   className="w-full pl-12 pr-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#2ADA71] focus:border-transparent transition"
                 />
               </div>
@@ -278,7 +343,6 @@ export default function AllPsychiatrists() {
                           <span>Available</span>
                         </div>
 
-                        {/* Show review count if exists */}
                         {hasRating && (
                           <div className="flex items-center gap-2 text-gray-600 text-xs">
                             <div className="p-1 bg-yellow-100 rounded">
