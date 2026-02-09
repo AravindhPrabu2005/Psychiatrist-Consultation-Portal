@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, memo } from 'react';
 import UserNavbar from './UserNavbar';
 import axiosInstance from '../../axiosInstance';
 import { 
@@ -16,6 +16,183 @@ import {
 } from 'lucide-react';
 import Footer from '../Footer';
 
+// Memoized Booking Card Component
+const BookingCard = memo(({ 
+  booking, 
+  admin, 
+  onPayment, 
+  canJoin, 
+  timeRemaining, 
+  formatDate, 
+  isToday 
+}) => {
+  const adminIdString = typeof booking.adminId === 'object' ? booking.adminId._id : booking.adminId;
+  
+  return (
+    <div 
+      className={`bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border-2 ${
+        isToday(booking.date) ? 'border-[#2ADA71] ring-2 ring-green-100' : 'border-gray-100'
+      }`}
+    >
+      {/* Header with Status */}
+      <div className={`p-3 ${isToday(booking.date) ? 'bg-gradient-to-r from-green-50 to-emerald-50' : 'bg-gradient-to-r from-blue-50 to-purple-50'}`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className={`p-1.5 rounded-lg ${isToday(booking.date) ? 'bg-[#2ADA71]' : 'bg-blue-500'}`}>
+              <Calendar className="text-white" size={16} />
+            </div>
+            <div>
+              <p className={`font-bold text-sm ${isToday(booking.date) ? 'text-[#2ADA71]' : 'text-gray-800'}`}>
+                {formatDate(booking.date)}
+              </p>
+              <p className="text-xs text-gray-600 flex items-center gap-1">
+                <Clock size={12} />
+                {booking.time}
+              </p>
+            </div>
+          </div>
+          {isToday(booking.date) && (
+            <span className="px-2 py-1 bg-[#2ADA71] text-white text-xs font-bold rounded-full animate-pulse">
+              TODAY
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Doctor Info */}
+      <div className="p-4">
+        <div className="flex items-start gap-3 mb-3">
+          {admin?.profilePhoto ? (
+            <img
+              src={admin.profilePhoto}
+              alt={admin.name}
+              className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-lg"
+              loading="lazy"
+            />
+          ) : (
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center shadow-lg">
+              <User className="text-white" size={24} />
+            </div>
+          )}
+          <div className="flex-1">
+            <h4 className="text-base font-bold text-gray-800">
+              Dr. {admin?.name || 'Unknown Doctor'}
+            </h4>
+            <p className="text-sm text-gray-600 mb-1">{admin?.specialization || 'N/A'}</p>
+            <div className="flex items-center gap-2">
+              {booking.paid ? (
+                <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full flex items-center gap-1">
+                  <CheckCircle size={12} />
+                  Paid
+                </span>
+              ) : (
+                <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs font-semibold rounded-full flex items-center gap-1">
+                  <Clock size={12} />
+                  Payment Pending
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Issue Card */}
+        <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
+          <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-1">
+            Your Concern
+          </p>
+          <p className="text-gray-700 text-sm">{booking.issue}</p>
+        </div>
+
+        {/* Action Buttons */}
+        {booking.paid && booking.meetingLink && (
+          <>
+            {canJoin ? (
+              <a
+                href={booking.meetingLink}
+                target="_blank"
+                rel="noreferrer"
+                className="text-center bg-gradient-to-r from-[#2ADA71] to-[#25c063] hover:from-[#25c063] hover:to-[#2ADA71] text-white px-4 py-2.5 rounded-xl transition font-semibold flex items-center justify-center gap-2 shadow-lg shadow-green-200"
+              >
+                <Video size={18} />
+                Join Meeting Now
+              </a>
+            ) : (
+              <div>
+                <button
+                  disabled
+                  className="w-full bg-gray-300 text-gray-600 px-4 py-2.5 rounded-xl cursor-not-allowed font-semibold flex items-center justify-center gap-2 mb-2"
+                >
+                  <Video size={18} />
+                  Meeting Not Started
+                </button>
+                <div className="p-3 bg-gradient-to-r from-orange-50 to-yellow-50 rounded-xl border border-orange-200">
+                  <div className="flex items-center justify-center gap-2 text-sm text-orange-700 font-medium mb-1">
+                    <Clock size={14} />
+                    <span>Available in: <strong>{timeRemaining}</strong></span>
+                  </div>
+                  <p className="text-xs text-center text-orange-600">
+                    You can join 10 minutes before your scheduled time
+                  </p>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {booking.paid && !booking.meetingLink && (
+          <div className="p-3 bg-blue-50 rounded-xl text-center border border-blue-200">
+            <AlertCircle className="mx-auto text-blue-600 mb-2" size={28} />
+            <p className="text-sm text-blue-700 font-medium">
+              Doctor will add the meeting link soon
+            </p>
+            <p className="text-xs text-blue-600 mt-1">
+              You'll be notified once it's available
+            </p>
+          </div>
+        )}
+
+        {!booking.paid && (
+          <button
+            onClick={() => onPayment(booking)}
+            className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-4 py-2.5 rounded-xl transition font-semibold flex items-center justify-center gap-2 shadow-lg shadow-green-200"
+          >
+            <CreditCard size={18} />
+            Complete Payment - ₹500
+          </button>
+        )}
+      </div>
+    </div>
+  );
+});
+
+BookingCard.displayName = 'BookingCard';
+
+// Skeleton Loader Component
+const BookingSkeleton = () => (
+  <div className="bg-white rounded-xl shadow-lg overflow-hidden border-2 border-gray-100 animate-pulse">
+    <div className="p-3 bg-gray-100">
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 bg-gray-300 rounded-lg" />
+        <div className="flex-1">
+          <div className="h-4 bg-gray-300 rounded w-24 mb-1" />
+          <div className="h-3 bg-gray-300 rounded w-16" />
+        </div>
+      </div>
+    </div>
+    <div className="p-4">
+      <div className="flex gap-3 mb-3">
+        <div className="w-12 h-12 bg-gray-300 rounded-full" />
+        <div className="flex-1">
+          <div className="h-4 bg-gray-300 rounded w-32 mb-2" />
+          <div className="h-3 bg-gray-300 rounded w-24" />
+        </div>
+      </div>
+      <div className="h-20 bg-gray-100 rounded-lg mb-3" />
+      <div className="h-10 bg-gray-200 rounded-xl" />
+    </div>
+  </div>
+);
+
 const Approved = () => {
   const userId = localStorage.getItem('id');
   const [upcomingBookings, setUpcomingBookings] = useState([]);
@@ -25,6 +202,8 @@ const Approved = () => {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   
   // Review states
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
@@ -35,6 +214,7 @@ const Approved = () => {
   const [reviewText, setReviewText] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
 
+  // Update timer every minute
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -43,14 +223,15 @@ const Approved = () => {
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    fetchBookings();
-  }, [userId]);
-
-  const fetchBookings = async () => {
+  // OPTIMIZED: Fetch all data in parallel
+  const fetchBookings = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    
     try {
-      const res = await axiosInstance.get(`/bookings/user/${userId}`);
-      const approved = res.data.filter(b => b.status === 'Approved');
+      // Fetch bookings
+      const bookingsRes = await axiosInstance.get(`/bookings/user/${userId}`);
+      const approved = bookingsRes.data.filter(b => b.status === 'Approved');
 
       const now = new Date();
       now.setHours(0, 0, 0, 0);
@@ -69,43 +250,53 @@ const Approved = () => {
         }
       });
 
-      const adminData = {};
-      await Promise.all(
-        approved.map(async b => {
-          const adminIdString = typeof b.adminId === 'object' ? b.adminId._id : b.adminId;
-          
-          if (!adminData[adminIdString]) {
-            try {
-              const res = await axiosInstance.get(`/admins/${adminIdString}`);
-              adminData[adminIdString] = res.data;
-            } catch (error) {
-              console.error('Error fetching admin:', error);
-              adminData[adminIdString] = null;
-            }
-          }
-        })
+      // OPTIMIZED: Collect unique admin IDs
+      const uniqueAdminIds = [...new Set(
+        approved.map(b => typeof b.adminId === 'object' ? b.adminId._id : b.adminId)
+      )];
+
+      // OPTIMIZED: Fetch all admin details in parallel
+      const adminPromises = uniqueAdminIds.map(adminId =>
+        axiosInstance.get(`/admins/${adminId}`)
+          .then(res => ({ id: adminId, data: res.data }))
+          .catch(err => {
+            console.error(`Error fetching admin ${adminId}:`, err);
+            return { id: adminId, data: null };
+          })
       );
 
-      // Fetch reviews for past bookings - CORRECTED API CALLS
-      const reviewsMap = {};
-      for (const b of past) {
+      const adminResults = await Promise.all(adminPromises);
+      const adminData = {};
+      adminResults.forEach(({ id, data }) => {
+        adminData[id] = data;
+      });
+
+      // OPTIMIZED: Fetch reviews for past bookings in parallel
+      const reviewPromises = past.map(async (b) => {
         try {
-          // Check if user can review this booking
-          const canReviewRes = await axiosInstance.get(`/api/reviews/can-review/${b._id}?userId=${userId}`);
+          const canReviewRes = await axiosInstance.get(
+            `/api/reviews/can-review/${b._id}?userId=${userId}`
+          );
           
-          // If they can't review because it's already reviewed, fetch the review
-          if (canReviewRes.data.canReview === false && canReviewRes.data.reason === 'Already reviewed') {
+          if (canReviewRes.data.canReview === false && 
+              canReviewRes.data.reason === 'Already reviewed') {
             const adminIdString = typeof b.adminId === 'object' ? b.adminId._id : b.adminId;
             const reviewsRes = await axiosInstance.get(`/api/reviews/doctor/${adminIdString}`);
             const userReview = reviewsRes.data.find(r => r.bookingId === b._id);
-            if (userReview) {
-              reviewsMap[b._id] = userReview;
-            }
+            return { bookingId: b._id, review: userReview };
           }
+          return { bookingId: b._id, review: null };
         } catch (error) {
-          console.error('Error fetching review status:', error);
+          console.error('Error fetching review:', error);
+          return { bookingId: b._id, review: null };
         }
-      }
+      });
+
+      const reviewResults = await Promise.all(reviewPromises);
+      const reviewsMap = {};
+      reviewResults.forEach(({ bookingId, review }) => {
+        if (review) reviewsMap[bookingId] = review;
+      });
 
       setAdminDetails(adminData);
       setUpcomingBookings(upcoming.sort((a, b) => new Date(a.date) - new Date(b.date)));
@@ -113,8 +304,15 @@ const Approved = () => {
       setReviews(reviewsMap);
     } catch (error) {
       console.error('Error fetching bookings:', error);
+      setError('Failed to load appointments. Please refresh the page.');
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [userId]);
+
+  useEffect(() => {
+    fetchBookings();
+  }, [fetchBookings]);
 
   const handlePayment = async (bookingId) => {
     setPaymentProcessing(true);
@@ -134,66 +332,8 @@ const Approved = () => {
     }
   };
 
-  const openReviewModal = (booking, admin) => {
-    const adminIdString = typeof booking.adminId === 'object' ? booking.adminId._id : booking.adminId;
-    setSelectedBookingForReview({ 
-      ...booking, 
-      doctorName: admin.name,
-      adminId: adminIdString 
-    });
-    setReviewModalOpen(true);
-    setRating(0);
-    setHoverRating(0);
-    setReviewText('');
-  };
-
-  const closeReviewModal = () => {
-    setReviewModalOpen(false);
-    setSelectedBookingForReview(null);
-    setRating(0);
-    setReviewText('');
-  };
-
-  const handleSubmitReview = async () => {
-    if (rating === 0) {
-      alert('Please select a rating');
-      return;
-    }
-
-    if (reviewText.trim().length < 10) {
-      alert('Please write at least 10 characters');
-      return;
-    }
-
-    setSubmittingReview(true);
-
-    try {
-      await axiosInstance.post('/api/reviews', {
-        doctorId: selectedBookingForReview.adminId,
-        patientId: userId,
-        bookingId: selectedBookingForReview._id,
-        rating,
-        review: reviewText.trim()
-      });
-
-      alert('✅ Review submitted successfully!');
-      closeReviewModal();
-      fetchBookings(); // Refresh to show the new review
-    } catch (error) {
-      console.error('Error submitting review:', error);
-      if (error.response?.status === 409) {
-        alert('You have already reviewed this appointment');
-      } else if (error.response?.status === 403) {
-        alert('Invalid booking. You can only review your own appointments.');
-      } else {
-        alert('Failed to submit review. Please try again.');
-      }
-    } finally {
-      setSubmittingReview(false);
-    }
-  };
-
-  const canJoinMeeting = (booking) => {
+  // OPTIMIZED: Memoize expensive calculations
+  const canJoinMeeting = useCallback((booking) => {
     try {
       const bookingDate = new Date(booking.date);
       const [timeStr, period] = booking.time.split(' ');
@@ -214,9 +354,9 @@ const Approved = () => {
       console.error('Error parsing date/time:', error);
       return false;
     }
-  };
+  }, [currentTime]);
 
-  const getTimeUntilMeeting = (booking) => {
+  const getTimeUntilMeeting = useCallback((booking) => {
     try {
       const bookingDate = new Date(booking.date);
       const [timeStr, period] = booking.time.split(' ');
@@ -244,9 +384,9 @@ const Approved = () => {
     } catch (error) {
       return 'Invalid time';
     }
-  };
+  }, [currentTime]);
 
-  const formatDate = (dateString) => {
+  const formatDate = useCallback((dateString) => {
     const date = new Date(dateString);
     const today = new Date();
     const tomorrow = new Date(today);
@@ -264,12 +404,71 @@ const Approved = () => {
         year: 'numeric'
       });
     }
-  };
+  }, []);
 
-  const isToday = (dateString) => {
+  const isToday = useCallback((dateString) => {
     const date = new Date(dateString);
     const today = new Date();
     return date.toDateString() === today.toDateString();
+  }, []);
+
+  const openReviewModal = useCallback((booking, admin) => {
+    const adminIdString = typeof booking.adminId === 'object' ? booking.adminId._id : booking.adminId;
+    setSelectedBookingForReview({ 
+      ...booking, 
+      doctorName: admin.name,
+      adminId: adminIdString 
+    });
+    setReviewModalOpen(true);
+    setRating(0);
+    setHoverRating(0);
+    setReviewText('');
+  }, []);
+
+  const closeReviewModal = useCallback(() => {
+    setReviewModalOpen(false);
+    setSelectedBookingForReview(null);
+    setRating(0);
+    setReviewText('');
+  }, []);
+
+  const handleSubmitReview = async () => {
+    if (rating === 0) {
+      alert('Please select a rating');
+      return;
+    }
+
+    if (reviewText.trim().length < 10) {
+      alert('Please write at least 10 characters');
+      return;
+    }
+
+    setSubmittingReview(true);
+
+    try {
+      await axiosInstance.post('/api/reviews', {
+        doctorId: selectedBookingForReview.adminId,
+        patientId: userId,
+        bookingId: selectedBookingForReview._id,
+        rating,
+        review: reviewText.trim()
+      });
+
+      alert('✅ Review submitted successfully!');
+      closeReviewModal();
+      fetchBookings();
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      if (error.response?.status === 409) {
+        alert('You have already reviewed this appointment');
+      } else if (error.response?.status === 403) {
+        alert('Invalid booking. You can only review your own appointments.');
+      } else {
+        alert('Failed to submit review. Please try again.');
+      }
+    } finally {
+      setSubmittingReview(false);
+    }
   };
 
   const renderStars = (rating) => {
@@ -282,6 +481,35 @@ const Approved = () => {
     ));
   };
 
+  // Memoize stats
+  const stats = useMemo(() => ({
+    total: upcomingBookings.length,
+    paid: upcomingBookings.filter(b => b.paid).length,
+    completed: pastBookings.length
+  }), [upcomingBookings, pastBookings]);
+
+  if (error) {
+    return (
+      <>
+        <UserNavbar />
+        <div className="pt-28 px-4 max-w-7xl mx-auto pb-10">
+          <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-8 text-center">
+            <AlertCircle className="mx-auto text-red-500 mb-4" size={64} />
+            <h3 className="text-xl font-bold text-red-800 mb-2">Something went wrong</h3>
+            <p className="text-red-600 mb-4">{error}</p>
+            <button
+              onClick={fetchBookings}
+              className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+        <Footer />
+      </>
+    );
+  }
+
   return (
     <>
       <UserNavbar />
@@ -293,39 +521,45 @@ const Approved = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-5 rounded-xl border-2 border-blue-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-blue-600 text-sm font-medium mb-1">Total Upcoming</p>
-                <p className="text-3xl font-bold text-blue-700">{upcomingBookings.length}</p>
-              </div>
-              <Calendar className="text-blue-500" size={40} />
-            </div>
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="bg-gray-100 p-5 rounded-xl animate-pulse h-24" />
+            ))}
           </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-5 rounded-xl border-2 border-blue-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-600 text-sm font-medium mb-1">Total Upcoming</p>
+                  <p className="text-3xl font-bold text-blue-700">{stats.total}</p>
+                </div>
+                <Calendar className="text-blue-500" size={40} />
+              </div>
+            </div>
 
-          <div className="bg-gradient-to-br from-green-50 to-green-100 p-5 rounded-xl border-2 border-green-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-green-600 text-sm font-medium mb-1">Paid & Confirmed</p>
-                <p className="text-3xl font-bold text-green-700">
-                  {upcomingBookings.filter(b => b.paid).length}
-                </p>
+            <div className="bg-gradient-to-br from-green-50 to-green-100 p-5 rounded-xl border-2 border-green-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-green-600 text-sm font-medium mb-1">Paid & Confirmed</p>
+                  <p className="text-3xl font-bold text-green-700">{stats.paid}</p>
+                </div>
+                <CheckCircle className="text-green-500" size={40} />
               </div>
-              <CheckCircle className="text-green-500" size={40} />
             </div>
-          </div>
 
-          <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-5 rounded-xl border-2 border-purple-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-purple-600 text-sm font-medium mb-1">Completed</p>
-                <p className="text-3xl font-bold text-purple-700">{pastBookings.length}</p>
+            <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-5 rounded-xl border-2 border-purple-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-purple-600 text-sm font-medium mb-1">Completed</p>
+                  <p className="text-3xl font-bold text-purple-700">{stats.completed}</p>
+                </div>
+                <History className="text-purple-500" size={40} />
               </div>
-              <History className="text-purple-500" size={40} />
             </div>
           </div>
-        </div>
+        )}
 
         {/* Upcoming Appointments Section */}
         <div className="mb-12">
@@ -336,7 +570,13 @@ const Approved = () => {
             <h3 className="text-2xl font-bold text-gray-800">Upcoming Appointments</h3>
           </div>
 
-          {upcomingBookings.length === 0 ? (
+          {loading ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {[1, 2].map(i => (
+                <BookingSkeleton key={i} />
+              ))}
+            </div>
+          ) : upcomingBookings.length === 0 ? (
             <div className="text-center py-16 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl border-2 border-dashed border-gray-300">
               <Calendar className="mx-auto text-gray-400 mb-4" size={64} />
               <p className="text-gray-500 text-lg font-medium mb-2">No upcoming appointments</p>
@@ -347,146 +587,21 @@ const Approved = () => {
               {upcomingBookings.map(b => {
                 const adminIdString = typeof b.adminId === 'object' ? b.adminId._id : b.adminId;
                 const admin = adminDetails[adminIdString];
-                const canJoin = canJoinMeeting(b);
-                const timeRemaining = getTimeUntilMeeting(b);
                 
                 return (
-                  <div 
-                    key={b._id} 
-                    className={`bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border-2 ${
-                      isToday(b.date) ? 'border-[#2ADA71] ring-2 ring-green-100' : 'border-gray-100'
-                    }`}
-                  >
-                    {/* Header with Status */}
-                    <div className={`p-3 ${isToday(b.date) ? 'bg-gradient-to-r from-green-50 to-emerald-50' : 'bg-gradient-to-r from-blue-50 to-purple-50'}`}>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className={`p-1.5 rounded-lg ${isToday(b.date) ? 'bg-[#2ADA71]' : 'bg-blue-500'}`}>
-                            <Calendar className="text-white" size={16} />
-                          </div>
-                          <div>
-                            <p className={`font-bold text-sm ${isToday(b.date) ? 'text-[#2ADA71]' : 'text-gray-800'}`}>
-                              {formatDate(b.date)}
-                            </p>
-                            <p className="text-xs text-gray-600 flex items-center gap-1">
-                              <Clock size={12} />
-                              {b.time}
-                            </p>
-                          </div>
-                        </div>
-                        {isToday(b.date) && (
-                          <span className="px-2 py-1 bg-[#2ADA71] text-white text-xs font-bold rounded-full animate-pulse">
-                            TODAY
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Doctor Info */}
-                    <div className="p-4">
-                      <div className="flex items-start gap-3 mb-3">
-                        {admin?.profilePhoto ? (
-                          <img
-                            src={admin.profilePhoto}
-                            alt={admin.name}
-                            className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-lg"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center shadow-lg">
-                            <User className="text-white" size={24} />
-                          </div>
-                        )}
-                        <div className="flex-1">
-                          <h4 className="text-base font-bold text-gray-800">
-                            Dr. {admin?.name || 'Unknown Doctor'}
-                          </h4>
-                          <p className="text-sm text-gray-600 mb-1">{admin?.specialization || 'N/A'}</p>
-                          <div className="flex items-center gap-2">
-                            {b.paid ? (
-                              <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full flex items-center gap-1">
-                                <CheckCircle size={12} />
-                                Paid
-                              </span>
-                            ) : (
-                              <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs font-semibold rounded-full flex items-center gap-1">
-                                <Clock size={12} />
-                                Payment Pending
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Issue Card */}
-                      <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
-                        <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-1">
-                          Your Concern
-                        </p>
-                        <p className="text-gray-700 text-sm">{b.issue}</p>
-                      </div>
-
-                      {/* Action Buttons */}
-                      {b.paid && b.meetingLink && (
-                        <>
-                          {canJoin ? (
-                            <a
-                              href={b.meetingLink}
-                              target="_blank"
-                              rel="noreferrer"
-                              className=" text-center bg-gradient-to-r from-[#2ADA71] to-[#25c063] hover:from-[#25c063] hover:to-[#2ADA71] text-white px-4 py-2.5 rounded-xl transition font-semibold flex items-center justify-center gap-2 shadow-lg shadow-green-200"
-                            >
-                              <Video size={18} />
-                              Join Meeting Now
-                            </a>
-                          ) : (
-                            <div>
-                              <button
-                                disabled
-                                className="w-full bg-gray-300 text-gray-600 px-4 py-2.5 rounded-xl cursor-not-allowed font-semibold flex items-center justify-center gap-2 mb-2"
-                              >
-                                <Video size={18} />
-                                Meeting Not Started
-                              </button>
-                              <div className="p-3 bg-gradient-to-r from-orange-50 to-yellow-50 rounded-xl border border-orange-200">
-                                <div className="flex items-center justify-center gap-2 text-sm text-orange-700 font-medium mb-1">
-                                  <Clock size={14} />
-                                  <span>Available in: <strong>{timeRemaining}</strong></span>
-                                </div>
-                                <p className="text-xs text-center text-orange-600">
-                                  You can join 10 minutes before your scheduled time
-                                </p>
-                              </div>
-                            </div>
-                          )}
-                        </>
-                      )}
-
-                      {b.paid && !b.meetingLink && (
-                        <div className="p-3 bg-blue-50 rounded-xl text-center border border-blue-200">
-                          <AlertCircle className="mx-auto text-blue-600 mb-2" size={28} />
-                          <p className="text-sm text-blue-700 font-medium">
-                            Doctor will add the meeting link soon
-                          </p>
-                          <p className="text-xs text-blue-600 mt-1">
-                            You'll be notified once it's available
-                          </p>
-                        </div>
-                      )}
-
-                      {!b.paid && (
-                        <button
-                          onClick={() => {
-                            setSelectedBooking(b);
-                            setShowModal(true);
-                          }}
-                          className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-4 py-2.5 rounded-xl transition font-semibold flex items-center justify-center gap-2 shadow-lg shadow-green-200"
-                        >
-                          <CreditCard size={18} />
-                          Complete Payment - ₹500
-                        </button>
-                      )}
-                    </div>
-                  </div>
+                  <BookingCard
+                    key={b._id}
+                    booking={b}
+                    admin={admin}
+                    onPayment={(booking) => {
+                      setSelectedBooking(booking);
+                      setShowModal(true);
+                    }}
+                    canJoin={canJoinMeeting(b)}
+                    timeRemaining={getTimeUntilMeeting(b)}
+                    formatDate={formatDate}
+                    isToday={isToday}
+                  />
                 );
               })}
             </div>
@@ -494,7 +609,7 @@ const Approved = () => {
         </div>
 
         {/* History Section */}
-        {pastBookings.length > 0 && (
+        {!loading && pastBookings.length > 0 && (
           <div>
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 bg-purple-100 rounded-lg">
@@ -520,6 +635,7 @@ const Approved = () => {
                           src={admin.profilePhoto}
                           alt={admin.name}
                           className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+                          loading="lazy"
                         />
                       ) : (
                         <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center">
@@ -553,7 +669,6 @@ const Approved = () => {
                           {b.issue}
                         </p>
 
-                        {/* Show review if exists */}
                         {review && (
                           <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg p-3 mb-2">
                             <div className="flex items-center gap-1 mb-2">
