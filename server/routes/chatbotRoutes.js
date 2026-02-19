@@ -58,8 +58,7 @@ router.post('/send', async (req, res) => {
     }
 
     const systemInstruction = `You are a compassionate and professional AI assistant for a person who have few problems.
-Provide supportive, empathetic responses while maintaining professional boundaries. don't answer other than the mental health issue
-. Make sure you always give a proper detailed answer to make the person convinced`;
+Provide supportive, empathetic responses while maintaining professional boundaries. don't answer other than the mental health issues.`;
 
     const messages = [
       { role: 'system', content: systemInstruction },
