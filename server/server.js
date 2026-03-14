@@ -20,7 +20,7 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const Booking = require('./models/Booking');
 
 const app = express();
-const port = 8000;
+const port = 5000;
 
 const server = http.createServer(app);
 
@@ -108,7 +108,8 @@ app.post('/api/webhook',
 app.use(express.json());
 
 // MongoDB connection
-mongoose.connect(process.env.MONGO_URI)
+console.log("Mongo URI:", process.env.MONGO_URI);
+mongoose.connect("mongodb://aravindhprabu2005:aravindhprabu2005@ac-qpplylh-shard-00-00.mhhwziy.mongodb.net:27017,ac-qpplylh-shard-00-01.mhhwziy.mongodb.net:27017,ac-qpplylh-shard-00-02.mhhwziy.mongodb.net:27017/?ssl=true&replicaSet=atlas-tppxn8-shard-0&authSource=admin&appName=Cluster0")
   .then(() => console.log('MongoDB connected'))
   .catch((err) => console.log(err));
 
