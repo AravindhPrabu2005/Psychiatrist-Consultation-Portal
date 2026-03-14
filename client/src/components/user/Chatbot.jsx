@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef, Fragment } from 'react';
-import { Send, Plus, MessageSquare, Menu, X, Loader2, Trash2, Bot, User, Search, PanelLeftClose, PanelLeft } from 'lucide-react';
+import {
+  Send, Plus, MessageSquare, X, Loader2,
+  Trash2, Bot, User, Search, PanelLeftClose, PanelLeft
+} from 'lucide-react';
 import UserNavbar from './UserNavbar';
 import axiosInstance from '../../axiosInstance';
 
@@ -13,16 +16,17 @@ const Chatbot = () => {
   const [currentChatId, setCurrentChatId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [loadingChat, setLoadingChat] = useState(false);
   const messagesEndRef = useRef(null);
-  
+
   const userId = localStorage.getItem('id');
 
-  // Function to format message text with markdown-like syntax
+  // ── Markdown-lite formatter ──────────────────────────────────────
   const formatMessage = (text) => {
     if (!text) return null;
 
     const parts = text.split(/(\*\*.*?\*\*)/g);
-    
+
     return parts.map((part, index) => {
       if (part.startsWith('**') && part.endsWith('**')) {
         return (
@@ -31,35 +35,17 @@ const Chatbot = () => {
           </strong>
         );
       }
-      
-      if (part.match(/^\d+\.\s+\*\*/)) {
-        const lines = part.split('\n');
-        return lines.map((line, lineIndex) => {
-          if (line.match(/^\d+\.\s+\*\*/)) {
-            const numberMatch = line.match(/^(\d+\.)\s+\*\*(.*?)\*\*:\s*(.*)/);
-            if (numberMatch) {
-              return (
-                <div key={`${index}-${lineIndex}`} className="my-2">
-                  <span className="font-medium">{numberMatch[1]} </span>
-                  <strong className="font-semibold">{numberMatch[2]}</strong>
-                  <span>: {numberMatch[3]}</span>
-                </div>
-              );
-            }
-          }
-          return <span key={`${index}-${lineIndex}`}>{line}</span>;
-        });
-      }
-      
-      return part.split('\n').map((line, lineIndex) => (
+
+      return part.split('\n').map((line, lineIndex, arr) => (
         <Fragment key={`${index}-${lineIndex}`}>
           {line}
-          {lineIndex < part.split('\n').length - 1 && <br />}
+          {lineIndex < arr.length - 1 && <br />}
         </Fragment>
       ));
     });
   };
 
+  // ── Auto-scroll ──────────────────────────────────────────────────
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -68,22 +54,25 @@ const Chatbot = () => {
     scrollToBottom();
   }, [messages]);
 
+  // ── On mount ─────────────────────────────────────────────────────
   useEffect(() => {
     fetchChatHistory();
   }, []);
 
-  // Filter chats based on search query
+  // ── Search filter ─────────────────────────────────────────────────
   useEffect(() => {
     if (searchQuery.trim() === '') {
       setFilteredChats(pastChats);
     } else {
-      const filtered = pastChats.filter(chat =>
-        chat.title.toLowerCase().includes(searchQuery.toLowerCase())
+      setFilteredChats(
+        pastChats.filter((chat) =>
+          chat.title.toLowerCase().includes(searchQuery.toLowerCase())
+        )
       );
-      setFilteredChats(filtered);
     }
   }, [searchQuery, pastChats]);
 
+  // ── API calls ─────────────────────────────────────────────────────
   const fetchChatHistory = async () => {
     try {
       setLoadingHistory(true);
@@ -101,87 +90,90 @@ const Chatbot = () => {
 
   const loadChat = async (chatId) => {
     try {
-      setLoading(true);
+      setLoadingChat(true);
       const response = await axiosInstance.get(`/chat/${chatId}?userId=${userId}`);
       if (response.data.success) {
         const chat = response.data.data;
-        setCurrentChatId(chatId);
-        
+        setCurrentChatId(chatId); // ✅ use chatId string
+
         const formattedMessages = [];
         chat.messages.forEach((msg) => {
           formattedMessages.push({
-            id: `user-${msg.timestamp}`,
+            id: `user-${msg._id || msg.timestamp}`,
             text: msg.userRequest,
             sender: 'user',
-            timestamp: new Date(msg.timestamp)
+            timestamp: new Date(msg.timestamp),
           });
           formattedMessages.push({
-            id: `bot-${msg.timestamp}`,
+            id: `bot-${msg._id || msg.timestamp}`,
             text: msg.aiResponse,
             sender: 'bot',
-            timestamp: new Date(msg.timestamp)
+            timestamp: new Date(msg.timestamp),
           });
         });
-        
+
         setMessages(formattedMessages);
       }
     } catch (error) {
       console.error('Error loading chat:', error);
     } finally {
-      setLoading(false);
+      setLoadingChat(false);
     }
   };
 
   const handleSend = async () => {
-    if (inputValue.trim() && !loading) {
-      const userMessage = {
-        id: `user-${Date.now()}`,
-        text: inputValue,
-        sender: 'user',
-        timestamp: new Date()
-      };
-      
-      setMessages(prev => [...prev, userMessage]);
-      const messageText = inputValue;
-      setInputValue('');
-      setLoading(true);
+    if (!inputValue.trim() || loading) return;
 
-      try {
-        const response = await axiosInstance.post('/chat/send', {
-          userId,
-          chatId: currentChatId,
-          message: messageText
-        });
+    const userMessage = {
+      id: `user-${Date.now()}`,
+      text: inputValue,
+      sender: 'user',
+      timestamp: new Date(),
+    };
 
-        if (response.data.success) {
-          const { chatId, message: aiResponse } = response.data.data;
-          
-          if (!currentChatId) {
-            setCurrentChatId(chatId);
-          }
+    setMessages((prev) => [...prev, userMessage]);
+    const messageText = inputValue;
+    setInputValue('');
+    setLoading(true);
 
-          const botMessage = {
-            id: `bot-${Date.now()}`,
-            text: aiResponse,
-            sender: 'bot',
-            timestamp: new Date()
-          };
-          
-          setMessages(prev => [...prev, botMessage]);
-          fetchChatHistory();
+    try {
+      const response = await axiosInstance.post('/chat/send', {
+        userId,
+        chatId: currentChatId,  // null for new chat, string for existing
+        message: messageText,
+      });
+
+      if (response.data.success) {
+        const { chatId, message: aiResponse } = response.data.data;
+
+        // Set chatId if this was a brand-new chat
+        if (!currentChatId) {
+          setCurrentChatId(chatId);
         }
-      } catch (error) {
-        console.error('Error sending message:', error);
-        const errorMessage = {
+
+        const botMessage = {
+          id: `bot-${Date.now()}`,
+          text: aiResponse,
+          sender: 'bot',
+          timestamp: new Date(),
+        };
+
+        setMessages((prev) => [...prev, botMessage]);
+        fetchChatHistory(); // refresh sidebar
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      setMessages((prev) => [
+        ...prev,
+        {
           id: `error-${Date.now()}`,
           text: 'Sorry, I encountered an error. Please try again.',
           sender: 'bot',
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, errorMessage]);
-      } finally {
-        setLoading(false);
-      }
+          timestamp: new Date(),
+        },
+      ]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -192,58 +184,39 @@ const Chatbot = () => {
     }
   };
 
-  const handleNewChat = async () => {
-    try {
-      const response = await axiosInstance.post('/chat/new', { userId });
-      if (response.data.success) {
-        setCurrentChatId(response.data.data.chatId);
-        setMessages([
-          {
-            id: 'welcome',
-            text: "Hello! I'm here to assist you with your psychology consultation. How can I help you today?",
-            sender: 'bot',
-            timestamp: new Date()
-          }
-        ]);
-        fetchChatHistory();
-      }
-    } catch (error) {
-      console.error('Error creating new chat:', error);
-      setCurrentChatId(null);
-      setMessages([
-        {
-          id: 'welcome',
-          text: "Hello! I'm here to assist you with your psychology consultation. How can I help you today?",
-          sender: 'bot',
-          timestamp: new Date()
-        }
-      ]);
-    }
+  const handleNewChat = () => {
+    setCurrentChatId(null);
+    setMessages([
+      {
+        id: 'welcome',
+        text: "Hello! I'm here to assist you with your psychology consultation. How can I help you today?",
+        sender: 'bot',
+        timestamp: new Date(),
+      },
+    ]);
   };
 
   const handleDeleteChat = async (chatId, e) => {
     e.stopPropagation();
-    if (window.confirm('Are you sure you want to delete this chat?')) {
-      try {
-        const response = await axiosInstance.delete(`/chat/${chatId}?userId=${userId}`);
-        if (response.data.success) {
-          if (currentChatId === chatId) {
-            handleNewChat();
-          }
-          fetchChatHistory();
+    if (!window.confirm('Are you sure you want to delete this chat?')) return;
+
+    try {
+      const response = await axiosInstance.delete(`/chat/${chatId}?userId=${userId}`);
+      if (response.data.success) {
+        if (currentChatId === chatId) {
+          handleNewChat();
         }
-      } catch (error) {
-        console.error('Error deleting chat:', error);
+        fetchChatHistory();
       }
+    } catch (error) {
+      console.error('Error deleting chat:', error);
     }
   };
 
   const formatDate = (date) => {
-    const now = new Date();
-    const chatDate = new Date(date);
-    const diffTime = Math.abs(now - chatDate);
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    
+    const diffDays = Math.floor(
+      Math.abs(new Date() - new Date(date)) / (1000 * 60 * 60 * 24)
+    );
     if (diffDays === 0) return 'Today';
     if (diffDays === 1) return 'Yesterday';
     if (diffDays < 7) return `${diffDays} days ago`;
@@ -251,12 +224,19 @@ const Chatbot = () => {
     return `${Math.floor(diffDays / 30)} months ago`;
   };
 
+  // ── Render ────────────────────────────────────────────────────────
   return (
     <>
       <UserNavbar />
       <div className="flex h-screen pt-16 bg-gray-50">
+
         {/* Sidebar */}
-        <div className={`${sidebarOpen ? 'w-72' : 'w-0'} bg-white border-r border-gray-200 flex flex-col transition-all duration-300 overflow-hidden shadow-sm`}>
+        <div
+          className={`${
+            sidebarOpen ? 'w-72' : 'w-0'
+          } bg-white border-r border-gray-200 flex flex-col transition-all duration-300 overflow-hidden shadow-sm`}
+        >
+          {/* New Chat Button */}
           <div className="p-4 border-b border-gray-100">
             <button
               onClick={handleNewChat}
@@ -267,7 +247,7 @@ const Chatbot = () => {
             </button>
           </div>
 
-          {/* Search Bar */}
+          {/* Search */}
           <div className="px-4 py-3 border-b border-gray-100">
             <div className="relative">
               <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
@@ -289,6 +269,7 @@ const Chatbot = () => {
             </div>
           </div>
 
+          {/* Chat List */}
           <div className="flex-1 overflow-y-auto p-3">
             <div className="flex items-center justify-between px-3 mb-3">
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
@@ -300,7 +281,7 @@ const Chatbot = () => {
                 </span>
               )}
             </div>
-            
+
             {loadingHistory ? (
               <div className="flex justify-center items-center py-8">
                 <Loader2 className="animate-spin text-gray-300" size={24} />
@@ -323,25 +304,29 @@ const Chatbot = () => {
             ) : (
               filteredChats.map((chat) => (
                 <button
-                  key={chat.id}
-                  onClick={() => loadChat(chat.id)}
+                  key={chat.chatId}                          // ✅ chatId
+                  onClick={() => loadChat(chat.chatId)}      // ✅ chatId
                   className={`w-full text-left px-3 py-2.5 rounded-lg transition-all mb-1.5 group relative ${
-                    currentChatId === chat.id 
-                      ? 'bg-green-50 border border-green-100' 
+                    currentChatId === chat.chatId            // ✅ chatId
+                      ? 'bg-green-50 border border-green-100'
                       : 'hover:bg-gray-50 border border-transparent'
                   }`}
                 >
                   <div className="flex items-start gap-2.5">
-                    <MessageSquare 
-                      size={16} 
+                    <MessageSquare
+                      size={16}
                       className={`mt-0.5 flex-shrink-0 ${
-                        currentChatId === chat.id ? 'text-[#2ADA71]' : 'text-gray-400'
-                      }`} 
+                        currentChatId === chat.chatId ? 'text-[#2ADA71]' : 'text-gray-400'
+                      }`}
                     />
                     <div className="flex-1 min-w-0 pr-6">
-                      <p className={`text-sm truncate ${
-                        currentChatId === chat.id ? 'text-gray-900 font-medium' : 'text-gray-700'
-                      }`}>
+                      <p
+                        className={`text-sm truncate ${
+                          currentChatId === chat.chatId
+                            ? 'text-gray-900 font-medium'
+                            : 'text-gray-700'
+                        }`}
+                      >
                         {chat.title}
                       </p>
                       <p className="text-xs text-gray-400 mt-0.5">
@@ -349,7 +334,7 @@ const Chatbot = () => {
                       </p>
                     </div>
                     <button
-                      onClick={(e) => handleDeleteChat(chat.id, e)}
+                      onClick={(e) => handleDeleteChat(chat.chatId, e)}  // ✅ chatId
                       className="absolute right-2 top-2.5 opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-50 rounded transition-all"
                     >
                       <Trash2 size={14} className="text-red-400 hover:text-red-500" />
@@ -393,10 +378,10 @@ const Chatbot = () => {
             </div>
           </div>
 
-          {/* Messages Area */}
+          {/* Messages */}
           <div className="flex-1 overflow-y-auto px-6 py-6 bg-gray-50">
             <div className="max-w-4xl mx-auto space-y-6">
-              {messages.length === 0 && !loading && (
+              {messages.length === 0 && !loading && !loadingChat && (
                 <div className="text-center py-16">
                   <div className="w-20 h-20 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-green-100">
                     <Bot className="text-[#2ADA71]" size={40} />
@@ -409,37 +394,53 @@ const Chatbot = () => {
                   </p>
                 </div>
               )}
-              
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div className={`flex gap-3 max-w-3xl ${message.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      message.sender === 'user' 
-                        ? 'bg-gray-700' 
-                        : 'bg-gradient-to-r from-[#2ADA71] to-[#25c063]'
-                    }`}>
-                      {message.sender === 'user' ? (
-                        <User className="text-white" size={18} />
-                      ) : (
-                        <Bot className="text-white" size={18} />
-                      )}
-                    </div>
-                    <div className={`rounded-2xl px-5 py-3 shadow-sm ${
-                      message.sender === 'user' 
-                        ? 'bg-gray-700 text-white' 
-                        : 'bg-white text-gray-800 border border-gray-100'
-                    }`}>
-                      <div className="text-sm leading-relaxed">
-                        {formatMessage(message.text)}
+
+              {/* Loading spinner when opening a past chat */}
+              {loadingChat && (
+                <div className="flex justify-center items-center py-16">
+                  <Loader2 className="animate-spin text-[#2ADA71]" size={32} />
+                </div>
+              )}
+
+              {!loadingChat &&
+                messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`flex gap-3 max-w-3xl ${
+                        message.sender === 'user' ? 'flex-row-reverse' : 'flex-row'
+                      }`}
+                    >
+                      <div
+                        className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
+                          message.sender === 'user'
+                            ? 'bg-gray-700'
+                            : 'bg-gradient-to-r from-[#2ADA71] to-[#25c063]'
+                        }`}
+                      >
+                        {message.sender === 'user' ? (
+                          <User className="text-white" size={18} />
+                        ) : (
+                          <Bot className="text-white" size={18} />
+                        )}
+                      </div>
+                      <div
+                        className={`rounded-2xl px-5 py-3 shadow-sm ${
+                          message.sender === 'user'
+                            ? 'bg-gray-700 text-white'
+                            : 'bg-white text-gray-800 border border-gray-100'
+                        }`}
+                      >
+                        <div className="text-sm leading-relaxed">
+                          {formatMessage(message.text)}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
-              
+                ))}
+
               {loading && (
                 <div className="flex justify-start">
                   <div className="flex gap-3 max-w-3xl">
@@ -455,12 +456,12 @@ const Chatbot = () => {
                   </div>
                 </div>
               )}
-              
+
               <div ref={messagesEndRef} />
             </div>
           </div>
 
-          {/* Input Area */}
+          {/* Input */}
           <div className="border-t border-gray-200 bg-white px-6 py-4 shadow-sm">
             <div className="max-w-4xl mx-auto">
               <div className="flex gap-3 items-end">
@@ -473,10 +474,7 @@ const Chatbot = () => {
                     disabled={loading}
                     className="w-full px-4 py-3 bg-transparent resize-none outline-none text-gray-800 placeholder-gray-400 disabled:opacity-50"
                     rows="1"
-                    style={{
-                      minHeight: '48px',
-                      maxHeight: '200px'
-                    }}
+                    style={{ minHeight: '48px', maxHeight: '200px' }}
                   />
                 </div>
                 <button

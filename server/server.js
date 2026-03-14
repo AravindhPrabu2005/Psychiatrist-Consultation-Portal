@@ -20,7 +20,7 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const Booking = require('./models/Booking');
 
 const app = express();
-const port = 5000;
+const port = 8000;
 
 const server = http.createServer(app);
 
