@@ -1,17 +1,9 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import axiosInstance from '../../axiosInstance';
 import { useNavigate } from 'react-router-dom';
-import { 
-  User2, 
-  BadgeInfo, 
-  Briefcase, 
-  Search, 
-  Filter,
-  Star,
-  Calendar,
-  Clock,
-  Award,
-  X
+import {
+  User2, BadgeInfo, Briefcase, Search, Filter,
+  Star, Calendar, Clock, Award, X
 } from 'lucide-react';
 import UserNavbar from './UserNavbar';
 import Footer from '../Footer';
@@ -20,7 +12,7 @@ export default function AllPsychiatrists() {
   const [admins, setAdmins] = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [nameSearch, setNameSearch] = useState('');
-  const [inputValue, setInputValue] = useState(''); // For immediate UI feedback
+  const [inputValue, setInputValue] = useState('');
   const [specializationSearch, setSpecializationSearch] = useState('');
   const [specializationInputValue, setSpecializationInputValue] = useState('');
   const [selectedSpecialization, setSelectedSpecialization] = useState('all');
@@ -31,27 +23,22 @@ export default function AllPsychiatrists() {
   const debounceTimerRef = useRef(null);
   const navigate = useNavigate();
 
-  // Initial fetch
   useEffect(() => {
     const fetchAdmins = async () => {
       try {
         const res = await axiosInstance.get('/admins');
         setAdmins(res.data);
         setFiltered(res.data);
-        
-        // Fetch ratings for all doctors
-        const statsPromises = res.data.map(admin => 
+
+        const statsPromises = res.data.map(admin =>
           axiosInstance.get(`/api/reviews/stats/${admin._id}`)
             .then(statsRes => ({ id: admin._id, stats: statsRes.data }))
             .catch(() => ({ id: admin._id, stats: null }))
         );
-        
+
         const allStats = await Promise.all(statsPromises);
         const statsMap = {};
-        allStats.forEach(({ id, stats }) => {
-          statsMap[id] = stats;
-        });
-        
+        allStats.forEach(({ id, stats }) => { statsMap[id] = stats; });
         setDoctorStats(statsMap);
         setLoading(false);
       } catch (err) {
@@ -62,23 +49,19 @@ export default function AllPsychiatrists() {
     fetchAdmins();
   }, []);
 
-  // Debounced filter function
   const applyFilters = useCallback(() => {
     setSearching(true);
-    
     let filteredData = admins.filter((admin) =>
       admin.name.toLowerCase().includes(nameSearch.toLowerCase()) &&
       admin.specialization?.toLowerCase().includes(specializationSearch.toLowerCase())
     );
 
-    // Filter by selected specialization
     if (selectedSpecialization !== 'all') {
       filteredData = filteredData.filter(
         admin => admin.specialization?.toLowerCase() === selectedSpecialization.toLowerCase()
       );
     }
 
-    // Sort
     if (sortBy === 'name') {
       filteredData.sort((a, b) => a.name.localeCompare(b.name));
     } else if (sortBy === 'experience') {
@@ -95,96 +78,55 @@ export default function AllPsychiatrists() {
     setSearching(false);
   }, [nameSearch, specializationSearch, selectedSpecialization, sortBy, admins, doctorStats]);
 
-  // Debounce wrapper
   const debouncedFilter = useCallback(() => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-    
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     setSearching(true);
-    debounceTimerRef.current = setTimeout(() => {
-      applyFilters();
-    }, 300); // 300ms delay
+    debounceTimerRef.current = setTimeout(() => { applyFilters(); }, 300);
   }, [applyFilters]);
 
-  // Trigger debounced filter on search changes
-  useEffect(() => {
-    if (!loading) {
-      debouncedFilter();
-    }
-  }, [nameSearch, specializationSearch, loading, debouncedFilter]);
+  useEffect(() => { if (!loading) debouncedFilter(); }, [nameSearch, specializationSearch, loading, debouncedFilter]);
+  useEffect(() => { if (!loading) applyFilters(); }, [selectedSpecialization, sortBy, loading, applyFilters]);
+  useEffect(() => () => { if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current); }, []);
 
-  // Trigger immediate filter on dropdown/sort changes (no debounce needed)
-  useEffect(() => {
-    if (!loading) {
-      applyFilters();
-    }
-  }, [selectedSpecialization, sortBy, loading, applyFilters]);
+  const handleNameSearchChange = (e) => { setInputValue(e.target.value); setNameSearch(e.target.value); };
+  const handleSpecializationSearchChange = (e) => { setSpecializationInputValue(e.target.value); setSpecializationSearch(e.target.value); };
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, []);
-
-  // Handle name search with debouncing
-  const handleNameSearchChange = (e) => {
-    const value = e.target.value;
-    setInputValue(value);
-    setNameSearch(value);
-  };
-
-  // Handle specialization search with debouncing
-  const handleSpecializationSearchChange = (e) => {
-    const value = e.target.value;
-    setSpecializationInputValue(value);
-    setSpecializationSearch(value);
-  };
-
-  // Get unique specializations
   const specializations = [...new Set(admins.map(a => a.specialization).filter(Boolean))];
 
   const clearFilters = () => {
-    setInputValue('');
-    setNameSearch('');
-    setSpecializationInputValue('');
-    setSpecializationSearch('');
-    setSelectedSpecialization('all');
-    setSortBy('name');
+    setInputValue(''); setNameSearch('');
+    setSpecializationInputValue(''); setSpecializationSearch('');
+    setSelectedSpecialization('all'); setSortBy('name');
   };
 
-  if (loading) {
-    return (
-      <>
-        <UserNavbar />
-        <div className="min-h-screen flex items-center justify-center from-blue-50 via-purple-50 to-pink-50">
-          <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-16 w-16 border-b-4 border-[#2ADA71] mb-4"></div>
-            <p className="text-gray-600 text-lg">Loading doctors...</p>
-          </div>
+  if (loading) return (
+    <>
+      <UserNavbar />
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-4 border-[#2ADA71] mb-3"></div>
+          <p className="text-gray-600">Loading doctors...</p>
         </div>
-      </>
-    );
-  }
+      </div>
+    </>
+  );
 
   return (
     <>
       <UserNavbar />
-      <div className="min-h-screen from-blue-50 via-purple-50 to-pink-50 pt-28">
+      <div className="min-h-screen pt-24 pb-10">
 
         {/* Search and Filter Section */}
-        <div className="max-w-7xl mx-auto px-6 mb-8">
-          <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100">
+        <div className="max-w-6xl mx-auto px-4 mb-5">
+          <div className="bg-white rounded-xl shadow-md p-4 border border-gray-100">
+
             {/* Search Bars */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
               <div className="relative">
-                <Search className="absolute left-4 top-3.5 text-gray-400" size={20} />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                 {searching && (
-                  <div className="absolute right-4 top-3.5">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#2ADA71]"></div>
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#2ADA71]"></div>
                   </div>
                 )}
                 <input
@@ -192,34 +134,32 @@ export default function AllPsychiatrists() {
                   placeholder="Search by doctor name..."
                   value={inputValue}
                   onChange={handleNameSearchChange}
-                  className="w-full pl-12 pr-12 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#2ADA71] focus:border-transparent transition"
+                  className="w-full pl-9 pr-9 py-2.5 rounded-lg border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#2ADA71] focus:border-transparent transition text-sm"
                 />
               </div>
-
               <div className="relative">
-                <Search className="absolute left-4 top-3.5 text-gray-400" size={20} />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                 <input
                   type="text"
                   placeholder="Search by specialization..."
                   value={specializationInputValue}
                   onChange={handleSpecializationSearchChange}
-                  className="w-full pl-12 pr-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#2ADA71] focus:border-transparent transition"
+                  className="w-full pl-9 pr-4 py-2.5 rounded-lg border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#2ADA71] focus:border-transparent transition text-sm"
                 />
               </div>
             </div>
 
-            {/* Filters */}
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Filter className="text-gray-600" size={20} />
-                <span className="text-sm font-medium text-gray-700">Filter by:</span>
+            {/* Filters Row */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                <Filter className="text-gray-500" size={15} />
+                <span className="text-xs font-medium text-gray-600">Filter:</span>
               </div>
 
-              {/* Specialization Filter */}
               <select
                 value={selectedSpecialization}
                 onChange={(e) => setSelectedSpecialization(e.target.value)}
-                className="px-4 py-2 rounded-lg border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#2ADA71] focus:border-transparent text-sm"
+                className="px-3 py-2 rounded-lg border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#2ADA71] focus:border-transparent text-xs bg-white"
               >
                 <option value="all">All Specializations</option>
                 {specializations.map((spec, idx) => (
@@ -227,32 +167,28 @@ export default function AllPsychiatrists() {
                 ))}
               </select>
 
-              {/* Sort */}
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="px-4 py-2 rounded-lg border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#2ADA71] focus:border-transparent text-sm"
+                className="px-3 py-2 rounded-lg border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#2ADA71] focus:border-transparent text-xs bg-white"
               >
-                <option value="name">Sort by Name</option>
-                <option value="experience">Sort by Experience</option>
-                <option value="rating">Sort by Rating</option>
+                <option value="name">Sort: Name</option>
+                <option value="experience">Sort: Experience</option>
+                <option value="rating">Sort: Rating</option>
               </select>
 
-              {/* Clear Filters */}
               {(nameSearch || specializationSearch || selectedSpecialization !== 'all' || sortBy !== 'name') && (
                 <button
                   onClick={clearFilters}
-                  className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition flex items-center gap-2 text-sm font-medium"
+                  className="px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition flex items-center gap-1.5 text-xs font-medium"
                 >
-                  <X size={16} />
-                  Clear Filters
+                  <X size={13} /> Clear
                 </button>
               )}
 
-              {/* Results Count */}
               <div className="ml-auto">
-                <span className="text-sm text-gray-600">
-                  Showing <strong className="text-gray-800">{filtered.length}</strong> of <strong className="text-gray-800">{admins.length}</strong> doctors
+                <span className="text-xs text-gray-500">
+                  <strong className="text-gray-700">{filtered.length}</strong> of <strong className="text-gray-700">{admins.length}</strong> doctors
                 </span>
               </div>
             </div>
@@ -260,113 +196,111 @@ export default function AllPsychiatrists() {
         </div>
 
         {/* Doctors Grid */}
-        <div className="max-w-7xl mx-auto px-6 pb-12">
+        <div className="max-w-6xl mx-auto px-4">
           {filtered.length === 0 ? (
-            <div className="text-center py-20">
-              <div className="bg-white rounded-2xl shadow-lg p-12 max-w-md mx-auto">
-                <User2 className="mx-auto text-gray-400 mb-4" size={64} />
-                <h3 className="text-xl font-bold text-gray-800 mb-2">No Doctors Found</h3>
-                <p className="text-gray-600 mb-6">Try adjusting your search or filters</p>
+            <div className="text-center py-16">
+              <div className="bg-white rounded-2xl shadow-md p-10 max-w-sm mx-auto">
+                <User2 className="mx-auto text-gray-300 mb-3" size={48} />
+                <h3 className="text-lg font-bold text-gray-800 mb-1">No Doctors Found</h3>
+                <p className="text-gray-500 text-sm mb-4">Try adjusting your search or filters</p>
                 <button
                   onClick={clearFilters}
-                  className="bg-[#2ADA71] text-white px-6 py-3 rounded-lg hover:bg-[#25c063] transition font-medium"
+                  className="bg-[#2ADA71] text-white px-5 py-2 rounded-lg hover:bg-[#25c063] transition font-medium text-sm"
                 >
                   Clear All Filters
                 </button>
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            // ✅ Key change: 2 cols on small laptop, 3 on large, 4 on xl
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-4">
               {filtered.map((admin) => {
                 const stats = doctorStats[admin._id];
                 const hasRating = stats && stats.totalReviews > 0;
-                
+
                 return (
                   <div
                     key={admin._id}
-                    className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all transform hover:scale-[1.03] duration-300 border border-gray-200 flex flex-col"
+                    className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all hover:scale-[1.02] duration-300 border border-gray-200 flex flex-col"
                   >
                     {/* Doctor Image */}
-                    <div className="relative w-full aspect-square overflow-hidden bg-gradient-to-br from-purple-100 to-blue-100">
+                    <div className="relative w-full h-36 overflow-hidden bg-gradient-to-br from-purple-100 to-blue-100">
                       <img
                         src={admin.profilePhoto}
                         alt={admin.name}
                         className="w-full h-full object-contain"
                       />
                       {hasRating ? (
-                        <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1 shadow-lg">
-                          <Star className="text-yellow-500 fill-yellow-500" size={14} />
-                          <span className="text-xs font-semibold text-gray-800">
-                            {stats.averageRating}
-                          </span>
-                          <span className="text-xs text-gray-500">
-                            ({stats.totalReviews})
-                          </span>
+                        <div className="absolute top-2 right-2 bg-white/95 backdrop-blur-sm px-2 py-0.5 rounded-full flex items-center gap-1 shadow-md">
+                          <Star className="text-yellow-500 fill-yellow-500" size={11} />
+                          <span className="text-xs font-semibold text-gray-800">{stats.averageRating}</span>
+                          <span className="text-xs text-gray-500">({stats.totalReviews})</span>
                         </div>
                       ) : (
-                        <div className="absolute top-3 right-3 bg-white/95 backdrop-blur-sm px-2 py-1 rounded-full shadow-lg">
-                          <span className="text-xs font-medium text-gray-600">New</span>
+                        <div className="absolute top-2 right-2 bg-white/95 backdrop-blur-sm px-2 py-0.5 rounded-full shadow-md">
+                          <span className="text-xs font-medium text-gray-500">New</span>
                         </div>
                       )}
                     </div>
 
+
                     {/* Doctor Info */}
-                    <div className="p-4 flex-1 flex flex-col">
+                    <div className="p-3 flex-1 flex flex-col">
                       {/* Name */}
-                      <h3 className="text-base font-bold text-gray-800 mb-2 flex items-center gap-1">
+                      <h3 className="text-sm font-bold text-gray-800 mb-2 flex items-center gap-1 truncate">
                         Dr. {admin.name}
-                        <Award className="text-[#2ADA71] flex-shrink-0" size={14} />
+                        <Award className="text-[#2ADA71] flex-shrink-0" size={13} />
                       </h3>
 
                       {/* Details */}
-                      <div className="space-y-2 mb-3 flex-1">
-                        <div className="flex items-center gap-2 text-gray-600 text-xs">
-                          <div className="p-1 bg-purple-100 rounded">
-                            <BadgeInfo className="text-purple-600" size={12} />
+                      <div className="space-y-1.5 mb-2 flex-1">
+                        <div className="flex items-center gap-1.5 text-gray-600 text-xs">
+                          <div className="p-0.5 bg-purple-100 rounded flex-shrink-0">
+                            <BadgeInfo className="text-purple-600" size={11} />
                           </div>
                           <span className="font-medium truncate">{admin.specialization || 'Psychiatry'}</span>
                         </div>
 
-                        <div className="flex items-center gap-2 text-gray-600 text-xs">
-                          <div className="p-1 bg-blue-100 rounded">
-                            <Briefcase className="text-blue-600" size={12} />
+                        <div className="flex items-center gap-1.5 text-gray-600 text-xs">
+                          <div className="p-0.5 bg-blue-100 rounded flex-shrink-0">
+                            <Briefcase className="text-blue-600" size={11} />
                           </div>
                           <span className="truncate">
-                            {admin.experienceYears ? `${admin.experienceYears} years` : 'Experienced'}
+                            {admin.experienceYears ? `${admin.experienceYears} yrs exp` : 'Experienced'}
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-2 text-gray-600 text-xs">
-                          <div className="p-1 bg-green-100 rounded">
-                            <Clock className="text-green-600" size={12} />
+                        <div className="flex items-center gap-1.5 text-gray-600 text-xs">
+                          <div className="p-0.5 bg-green-100 rounded flex-shrink-0">
+                            <Clock className="text-green-600" size={11} />
                           </div>
                           <span>Available</span>
                         </div>
 
                         {hasRating && (
-                          <div className="flex items-center gap-2 text-gray-600 text-xs">
-                            <div className="p-1 bg-yellow-100 rounded">
-                              <Star className="text-yellow-600" size={12} />
+                          <div className="flex items-center gap-1.5 text-gray-600 text-xs">
+                            <div className="p-0.5 bg-yellow-100 rounded flex-shrink-0">
+                              <Star className="text-yellow-600" size={11} />
                             </div>
                             <span>{stats.totalReviews} {stats.totalReviews === 1 ? 'review' : 'reviews'}</span>
                           </div>
                         )}
                       </div>
 
-                      {/* Consultation Fee */}
-                      <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-2 rounded-lg border border-green-200 mb-3">
+                      {/* Fee */}
+                      <div className="bg-green-50 px-2 py-1.5 rounded-lg border border-green-200 mb-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-600">Fee</span>
-                          <span className="text-base font-bold text-green-600">₹500</span>
+                          <span className="text-xs text-gray-500">Fee</span>
+                          <span className="text-sm font-bold text-green-600">₹500</span>
                         </div>
                       </div>
 
                       {/* Book Button */}
                       <button
                         onClick={() => navigate(`/user/book/${admin._id}`)}
-                        className="w-full bg-gradient-to-r from-[#2ADA71] to-[#25c063] hover:from-[#25c063] hover:to-[#2ADA71] text-white font-semibold px-4 py-2 rounded-lg transition-all shadow-md shadow-green-200 flex items-center justify-center gap-2 text-sm"
+                        className="w-full bg-gradient-to-r from-[#2ADA71] to-[#25c063] hover:from-[#25c063] hover:to-[#2ADA71] text-white font-semibold px-3 py-2 rounded-lg transition-all shadow-sm flex items-center justify-center gap-1.5 text-xs"
                       >
-                        <Calendar size={16} />
+                        <Calendar size={13} />
                         Book Now
                       </button>
                     </div>

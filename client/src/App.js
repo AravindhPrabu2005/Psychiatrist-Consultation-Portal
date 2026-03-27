@@ -21,6 +21,8 @@ import AdminMessenger from './components/admin/AdminMessenger';
 import AppointmentHistory from './components/admin/AppointmentHistory';
 import PatientCare from './components/admin/PatientCare';
 import BookingSuccess from './components/user/BookingSuccess';
+import BookingCancelled from './components/user/BookingCancelled';
+import UserAppointmentHistory from './components/user/UserAppointmentHistory';
 
 
 const App = () => {
@@ -55,6 +57,8 @@ const App = () => {
                 <Route path='/user/chatbot' element={<Chatbot/> } />
                 <Route path='/user/messenger' element={<UserMessenger/> } />
                 <Route path="/booking-success" element={<BookingSuccess />} />
+                <Route path="/booking-cancelled" element={<BookingCancelled />} />
+                <Route path="/user/history" element={<UserAppointmentHistory /> } />
                 
             </Routes>
         </Router>

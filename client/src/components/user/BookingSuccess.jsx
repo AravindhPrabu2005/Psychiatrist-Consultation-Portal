@@ -1,110 +1,97 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { CheckCircle, Calendar, Clock, User } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { CheckCircle, XCircle, Loader } from 'lucide-react';
 import axiosInstance from '../../axiosInstance';
-import UserNavbar from './UserNavbar';
 
 export default function BookingSuccess() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [booking, setBooking] = useState(null);
-  const [loading, setLoading] = useState(true);
 
+  const sessionId = searchParams.get('session_id');
   const bookingId = searchParams.get('booking_id');
 
-  useEffect(() => {
-    if (bookingId) {
-      checkBookingStatus();
-    }
-  }, [bookingId]);
+  const [status, setStatus] = useState('verifying'); // verifying | success | failed
 
-  const checkBookingStatus = async () => {
+  useEffect(() => {
+    if (!sessionId || !bookingId) {
+      navigate('/');
+      return;
+    }
+
+    verifyPayment();
+  }, []);
+
+  const verifyPayment = async () => {
     try {
-      const response = await axiosInstance.get(`/bookings/${bookingId}`);
-      setBooking(response.data);
-      setLoading(false);
+      const res = await axiosInstance.post('/api/verify-payment', {
+        sessionId,
+        bookingId,
+      });
+
+      if (res.data.success && res.data.paid) {
+        setStatus('success');
+        setTimeout(() => navigate('/user/approved'), 3000);
+      } else {
+        setStatus('failed');
+      }
     } catch (error) {
-      console.error('Error fetching booking:', error);
-      setLoading(false);
+      console.error('Verification error:', error);
+      setStatus('failed');
     }
   };
 
-  if (loading) {
-    return (
-      <>
-        <UserNavbar />
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#2ADA71] mb-4"></div>
-            <p className="text-gray-500 text-xl">Confirming your booking...</p>
-          </div>
-        </div>
-      </>
-    );
-  }
-
   return (
-    <>
-      <UserNavbar />
-      <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 flex items-center justify-center p-6">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
-          <div className="text-center mb-6">
-            <div className="inline-block p-4 bg-green-100 rounded-full mb-4">
-              <CheckCircle className="text-green-600" size={64} />
-            </div>
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">Payment Successful!</h1>
-            <p className="text-gray-600">Your appointment has been confirmed</p>
-          </div>
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-green-50 to-emerald-50">
+      <div className="text-center p-10 bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4">
 
-          {booking && (
-            <div className="space-y-4 mb-6">
-              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <div className="flex items-center gap-3 mb-2">
-                  <User className="text-[#2ADA71]" size={20} />
-                  <p className="text-sm font-semibold text-gray-700">Doctor</p>
-                </div>
-                <p className="text-gray-800 ml-8">Dr. {booking.adminId?.name}</p>
-              </div>
+        {status === 'verifying' && (
+          <>
+            <Loader className="animate-spin mx-auto text-green-500 mb-4" size={52} />
+            <h2 className="text-xl font-bold text-gray-700 mb-2">Verifying Payment...</h2>
+            <p className="text-sm text-gray-500">Please wait, do not close this page.</p>
+          </>
+        )}
 
-              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <div className="flex items-center gap-3 mb-2">
-                  <Calendar className="text-[#2ADA71]" size={20} />
-                  <p className="text-sm font-semibold text-gray-700">Date</p>
-                </div>
-                <p className="text-gray-800 ml-8">{booking.date}</p>
-              </div>
-
-              <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <div className="flex items-center gap-3 mb-2">
-                  <Clock className="text-[#2ADA71]" size={20} />
-                  <p className="text-sm font-semibold text-gray-700">Time</p>
-                </div>
-                <p className="text-gray-800 ml-8">{booking.time}</p>
-              </div>
-
-              <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border-2 border-green-200">
-                <div className="flex justify-between items-center">
-                  <p className="text-sm font-semibold text-gray-700">Amount Paid</p>
-                  <p className="text-2xl font-bold text-green-600">₹{booking.amount}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <p className="text-sm text-blue-800">
-              📧 A confirmation email has been sent. The doctor will add the meeting link soon.
+        {status === 'success' && (
+          <>
+            <CheckCircle className="mx-auto text-green-500 mb-4" size={72} />
+            <h2 className="text-2xl font-bold text-green-600 mb-2">Booking Confirmed! 🎉</h2>
+            <p className="text-gray-600 mb-1">Payment successful</p>
+            <p className="text-sm text-gray-500 mb-6">
+              The doctor will add a meeting link soon.
             </p>
-          </div>
+            <div className="w-full bg-gray-200 rounded-full h-1.5">
+              <div className="bg-green-500 h-1.5 rounded-full animate-pulse w-3/4"></div>
+            </div>
+            <p className="text-xs text-gray-400 mt-2">Redirecting to your appointments...</p>
+          </>
+        )}
 
-          <button
-            onClick={() => navigate('/user/approved')}
-            className="w-full bg-gradient-to-r from-[#2ADA71] to-[#25c063] hover:from-[#25c063] hover:to-[#2ADA71] text-white py-3 rounded-lg font-semibold transition"
-          >
-            View My Appointments
-          </button>
-        </div>
+        {status === 'failed' && (
+          <>
+            <XCircle className="mx-auto text-red-400 mb-4" size={72} />
+            <h2 className="text-xl font-bold text-gray-700 mb-2">Verification Failed</h2>
+            <p className="text-sm text-gray-500 mb-6">
+              We couldn't confirm your payment. If money was deducted, contact support.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={verifyPayment}
+                className="bg-[#2ADA71] text-white px-6 py-2 rounded-lg font-medium hover:bg-[#25c063] transition"
+              >
+                Retry
+              </button>
+              <button
+                onClick={() => navigate('/user/approved')}
+                className="border border-gray-300 text-gray-700 px-6 py-2 rounded-lg font-medium hover:bg-gray-50 transition"
+              >
+                My Appointments
+              </button>
+            </div>
+          </>
+        )}
+
       </div>
-    </>
+    </div>
   );
 }

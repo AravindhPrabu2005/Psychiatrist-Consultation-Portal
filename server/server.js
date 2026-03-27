@@ -35,16 +35,16 @@ const io = new Server(server, {
 app.use(cors());
 
 // ⚠️ CRITICAL: Webhook route MUST come BEFORE express.json()
-app.post('/api/webhook', 
-  express.raw({type: 'application/json'}), 
+app.post('/api/webhook',
+  express.raw({ type: 'application/json' }),
   async (req, res) => {
     const sig = req.headers['stripe-signature'];
     let event;
 
     try {
       event = stripe.webhooks.constructEvent(
-        req.body, 
-        sig, 
+        req.body,
+        sig,
         process.env.STRIPE_WEBHOOK_SECRET
       );
     } catch (err) {
@@ -54,55 +54,62 @@ app.post('/api/webhook',
 
     console.log('✅ Webhook received:', event.type);
 
-    // Handle events
+    // ✅ PRIMARY: Handle Checkout Session completion
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
-      
+      const bookingId = session.metadata?.bookingId;
+
       console.log('💳 Checkout session completed:', session.id);
-      
+      console.log('📦 BookingId from metadata:', bookingId);
+
+      if (!bookingId) {
+        console.log('⚠️ No bookingId in metadata — cannot update booking');
+        return res.json({ received: true });
+      }
+
       try {
-        const booking = await Booking.findOneAndUpdate(
-          { paymentIntentId: session.id },
+        const booking = await Booking.findByIdAndUpdate(
+          bookingId,
           {
             paid: true,
             paymentStatus: 'paid',
             status: 'Approved',
+            paymentIntentId: session.id,
             transactionDate: new Date(),
-            amount: session.amount_total / 100
+            amount: session.amount_total / 100,
           },
           { new: true }
         );
-        
+
         if (booking) {
-          console.log('✅ Booking updated successfully:', booking._id);
+          console.log('✅ Booking marked as paid:', booking._id);
         } else {
-          console.log('⚠️ No booking found with paymentIntentId:', session.id);
+          console.log('⚠️ Booking not found for ID:', bookingId);
         }
       } catch (error) {
         console.error('❌ Error updating booking:', error);
       }
     }
-    
-    if (event.type === 'payment_intent.succeeded') {
-      const paymentIntent = event.data.object;
-      console.log('✅ PaymentIntent succeeded:', paymentIntent.id);
-      await handlePaymentSuccess(paymentIntent);
-    }
-    
-    if (event.type === 'payment_intent.payment_failed') {
-      const paymentIntent = event.data.object;
-      console.log('❌ PaymentIntent failed:', paymentIntent.id);
-      await handlePaymentFailed(paymentIntent);
-    }
-    
-    if (event.type === 'payment_intent.canceled') {
-      const paymentIntent = event.data.object;
-      console.log('⚠️ PaymentIntent canceled:', paymentIntent.id);
-      await handlePaymentCanceled(paymentIntent);
+
+    // ✅ Handle session expiry (user abandoned checkout)
+    if (event.type === 'checkout.session.expired') {
+      const session = event.data.object;
+      const bookingId = session.metadata?.bookingId;
+
+      if (bookingId) {
+        await Booking.findByIdAndUpdate(bookingId, {
+          paymentStatus: 'failed',
+          paid: false,
+          status: 'cancelled',
+        });
+        console.log('⚠️ Session expired, booking cancelled:', bookingId);
+      }
     }
 
-    res.json({received: true});
-});
+    res.json({ received: true });
+  }
+);
+
 
 // NOW add express.json() AFTER webhook
 app.use(express.json());

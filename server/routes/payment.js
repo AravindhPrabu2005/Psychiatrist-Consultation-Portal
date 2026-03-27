@@ -9,8 +9,8 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 router.post('/api/create-checkout-session', async (req, res) => {
   try {
     const { bookingId, amount, userId, adminId, date, time } = req.body;
-    
-    if (!bookingId || !amount || amount < 50) {
+
+    if (!bookingId || !amount || amount < 1) {
       return res.status(400).json({ error: 'Invalid booking or amount' });
     }
 
@@ -26,16 +26,15 @@ router.post('/api/create-checkout-session', async (req, res) => {
       return res.status(400).json({ error: 'Booking already paid' });
     }
 
-    // Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
         {
           price_data: {
-            currency: 'usd',
+            currency: 'inr',
             product_data: {
               name: 'PsyCare Therapy Session',
-              description: `Consultation with ${booking.adminId.name} on ${date} at ${time}`,
+              description: `Consultation with Dr. ${booking.adminId.name} on ${date} at ${time}`,
             },
             unit_amount: Math.round(amount * 100),
           },
@@ -48,28 +47,74 @@ router.post('/api/create-checkout-session', async (req, res) => {
       client_reference_id: bookingId,
       customer_email: booking.userId.email,
       metadata: {
-        bookingId: bookingId,
-        userId: userId,
-        adminId: adminId,
+        bookingId: bookingId.toString(),
+        userId: userId.toString(),
+        adminId: adminId.toString(),
         sessionDate: `${date} ${time}`,
         patientName: booking.userId.name,
         doctorName: booking.adminId.name,
       },
     });
 
-    // Save session ID to booking
     booking.paymentIntentId = session.id;
-    booking.stripeClientSecret = session.payment_intent;
     booking.paymentStatus = 'pending';
     await booking.save();
-    
-    res.json({
-      sessionId: session.id,
-      url: session.url,
-    });
+
+    res.json({ sessionId: session.id, url: session.url });
 
   } catch (error) {
     console.error('Checkout session creation failed:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ✅ NEW: Verify payment directly from Stripe and update booking
+router.post('/api/verify-payment', async (req, res) => {
+  try {
+    const { sessionId, bookingId } = req.body;
+
+    if (!sessionId || !bookingId) {
+      return res.status(400).json({ error: 'Missing sessionId or bookingId' });
+    }
+
+    // ✅ Ask Stripe directly if payment was successful
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    if (session.payment_status === 'paid') {
+      // ✅ Update booking in DB
+      const booking = await Booking.findByIdAndUpdate(
+        bookingId,
+        {
+          paid: true,
+          paymentStatus: 'paid',
+          status: 'Approved',
+          paymentIntentId: session.id,
+          transactionDate: new Date(),
+          amount: session.amount_total / 100,
+        },
+        { new: true }
+      );
+
+      if (!booking) {
+        return res.status(404).json({ error: 'Booking not found' });
+      }
+
+      return res.json({
+        success: true,
+        paid: true,
+        booking,
+      });
+    } else {
+      // Payment not completed yet
+      return res.json({
+        success: false,
+        paid: false,
+        paymentStatus: session.payment_status,
+      });
+    }
+
+  } catch (error) {
+    console.error('Payment verification failed:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -78,7 +123,7 @@ router.post('/api/create-checkout-session', async (req, res) => {
 router.get('/api/payment-status/:bookingId', async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.bookingId);
-    
+
     if (!booking) {
       return res.status(404).json({ error: 'Booking not found' });
     }

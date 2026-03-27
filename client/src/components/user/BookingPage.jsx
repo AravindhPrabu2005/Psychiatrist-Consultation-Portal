@@ -18,6 +18,7 @@ import axiosInstance from '../../axiosInstance';
 import UserNavbar from './UserNavbar';
 import Footer from '../Footer';
 
+
 export default function BookAppointment() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -34,6 +35,7 @@ export default function BookAppointment() {
   const [stats, setStats] = useState(null);
   const [reviewsFilter, setReviewsFilter] = useState('all');
 
+
   const fetchBookedSlots = () => {
     axiosInstance
       .get(`/bookings/admin/${id}`)
@@ -48,6 +50,7 @@ export default function BookAppointment() {
       });
   };
 
+
   const fetchReviews = async () => {
     try {
       const [reviewsRes, statsRes] = await Promise.all([
@@ -61,6 +64,7 @@ export default function BookAppointment() {
       console.error('Error fetching reviews:', error);
     }
   };
+
 
   useEffect(() => {
     if (!id || id === '[object Object]') {
@@ -78,13 +82,16 @@ export default function BookAppointment() {
         setAdmin(null);
       });
 
+
     fetchBookedSlots();
     fetchReviews();
   }, [id]);
 
+
   const getNext7Days = () => {
     const days = [];
     const weekDays = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
 
     for (let i = 0; i < 7; i++) {
       const date = new Date();
@@ -98,6 +105,7 @@ export default function BookAppointment() {
     return days;
   };
 
+
   const generateTimeSlots = (isToday, selectedDate) => {
     const slots = [];
     const now = new Date();
@@ -106,9 +114,11 @@ export default function BookAppointment() {
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
     });
 
+
     const bookedTimesForDate = bookedSlots
       .filter(booking => booking.date === formattedSelectedDate)
       .map(booking => booking.time);
+
 
     for (let hour = 9; hour <= 20; hour++) {
       const slotTime = new Date();
@@ -120,6 +130,7 @@ export default function BookAppointment() {
         hour12: true
       });
 
+
       const isValidSlot = (!isToday || slotTime > now) && !bookedTimesForDate.includes(timeString);
       
       if (isValidSlot) {
@@ -129,14 +140,17 @@ export default function BookAppointment() {
     return slots;
   };
 
+
   const next7Days = getNext7Days();
   const selectedDay = next7Days[selectedDateIndex];
   const isToday = selectedDateIndex === 0;
   const timeSlots = generateTimeSlots(isToday, selectedDay.fullDate);
 
+
   const formattedDate = selectedDay.fullDate.toLocaleDateString('en-IN', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
   });
+
 
   const handleBookNow = () => {
     const userId = localStorage.getItem('id');
@@ -148,18 +162,20 @@ export default function BookAppointment() {
     if (selectedTime) setIsModalOpen(true);
   };
 
+
   const handleProceedToPayment = async () => {
     if (!issue.trim()) {
       alert('Please describe your issue');
       return;
     }
 
+
     setPaymentProcessing(true);
+
 
     try {
       const userId = localStorage.getItem('id');
       
-      // Create booking first
       const bookingResponse = await axiosInstance.post('/api/booking', {
         userId: userId,
         adminId: id,
@@ -169,7 +185,7 @@ export default function BookAppointment() {
         amount: 500
       });
 
-      // Create Stripe Checkout Session
+
       const checkoutResponse = await axiosInstance.post('/api/create-checkout-session', {
         bookingId: bookingResponse.data.bookingId,
         amount: 500,
@@ -179,8 +195,9 @@ export default function BookAppointment() {
         time: selectedTime,
       });
 
-      // Redirect to Stripe Checkout
+
       window.location.href = checkoutResponse.data.url;
+
 
     } catch (error) {
       setPaymentProcessing(false);
@@ -197,10 +214,12 @@ export default function BookAppointment() {
     }
   };
 
+
   const closeModal = () => {
     setIsModalOpen(false);
     setPaymentProcessing(false);
   };
+
 
   const markHelpful = async (reviewId) => {
     try {
@@ -211,10 +230,12 @@ export default function BookAppointment() {
     }
   };
 
+
   const getFilteredReviews = () => {
     if (reviewsFilter === 'all') return reviews;
     return reviews.filter(r => r.rating === parseInt(reviewsFilter));
   };
+
 
   const renderStars = (rating) => {
     return [...Array(5)].map((_, index) => (
@@ -226,7 +247,9 @@ export default function BookAppointment() {
     ));
   };
 
+
   const filteredReviews = getFilteredReviews();
+
 
   if (!admin)
     return (
@@ -237,6 +260,7 @@ export default function BookAppointment() {
         </div>
       </div>
     );
+
 
   return (
     <>
@@ -265,6 +289,7 @@ export default function BookAppointment() {
                   )}
                 </div>
 
+
                 <div className="text-center mb-4">
                   <h2 className="text-2xl font-bold text-gray-900 flex items-center justify-center gap-2 mb-2">
                     Dr. {admin.name}
@@ -276,6 +301,7 @@ export default function BookAppointment() {
                   </span>
                 </div>
 
+
                 <div className="space-y-3 mb-4">
                   <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
                     <Info size={20} className="text-blue-600 flex-shrink-0 mt-0.5" />
@@ -284,11 +310,13 @@ export default function BookAppointment() {
                     </p>
                   </div>
 
+
                   <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border-2 border-green-200">
                     <p className="text-sm text-gray-600 mb-1">Consultation Fee</p>
                     <p className="text-3xl font-bold text-green-600">₹500</p>
                   </div>
                 </div>
+
 
                 {stats && stats.totalReviews > 0 && (
                   <div className="pt-4 border-t">
@@ -322,12 +350,14 @@ export default function BookAppointment() {
               </div>
             </div>
 
+
             <div className="lg:col-span-2">
               <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
                 <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                   <Calendar className="text-[#2ADA71]" size={24} />
                   Select Date & Time
                 </h3>
+
 
                 <div className="mb-6">
                   <p className="text-sm font-medium text-gray-700 mb-3">Choose Date</p>
@@ -351,6 +381,7 @@ export default function BookAppointment() {
                     ))}
                   </div>
                 </div>
+
 
                 <div>
                   <p className="text-sm font-medium text-gray-700 mb-3">Available Time Slots</p>
@@ -384,6 +415,7 @@ export default function BookAppointment() {
                   </div>
                 </div>
 
+
                 <div className="mt-6">
                   <button
                     onClick={handleBookNow}
@@ -400,6 +432,7 @@ export default function BookAppointment() {
                 </div>
               </div>
 
+
               <div className="bg-white rounded-2xl shadow-xl p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-xl font-bold flex items-center gap-2">
@@ -413,6 +446,7 @@ export default function BookAppointment() {
                     </div>
                   )}
                 </div>
+
 
                 {reviews.length === 0 ? (
                   <div className="text-center py-12">
@@ -453,6 +487,7 @@ export default function BookAppointment() {
                       })}
                     </div>
 
+
                     <div className="space-y-4">
                       {filteredReviews.slice(0, 10).map((review, idx) => (
                         <div key={idx} className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition">
@@ -488,11 +523,14 @@ export default function BookAppointment() {
                             )}
                           </div>
 
+
                           <div className="flex items-center gap-1 mb-2">
                             {renderStars(review.rating)}
                           </div>
 
+
                           <p className="text-gray-700 text-sm leading-relaxed mb-3">{review.review}</p>
+
 
                           <button
                             onClick={() => markHelpful(review._id)}
@@ -504,6 +542,7 @@ export default function BookAppointment() {
                         </div>
                       ))}
                     </div>
+
 
                     {filteredReviews.length > 10 && (
                       <div className="text-center mt-6">
@@ -520,49 +559,54 @@ export default function BookAppointment() {
         </div>
       </div>
 
+
       {/* BOOKING MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl w-full max-w-md shadow-2xl relative">
+          <div className="bg-white rounded-xl w-full max-w-2xl shadow-2xl relative">
             <div className="p-6">
-              <button 
-                onClick={closeModal} 
+              <button
+                onClick={closeModal}
                 className="absolute top-4 right-4 text-gray-500 hover:text-black transition"
                 disabled={paymentProcessing}
               >
                 <X size={20} />
               </button>
-              
+
               <h2 className="text-xl font-bold mb-6 text-gray-800">Confirm Booking</h2>
 
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-2 text-gray-700">Doctor</label>
-                <div className="px-4 py-3 bg-gray-50 rounded-lg text-sm text-gray-800 border border-gray-200">
-                  Dr. {admin.name} - {admin.specialization}
+              {/* 2-column grid for info fields */}
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-700">Doctor</label>
+                  <div className="px-4 py-3 bg-gray-50 rounded-lg text-sm text-gray-800 border border-gray-200">
+                    Dr. {admin.name} - {admin.specialization}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-700">Consultation Fee</label>
+                  <div className="px-4 py-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg text-sm border-2 border-green-200">
+                    <span className="text-2xl font-bold text-green-600">₹500</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-700">Selected Date</label>
+                  <div className="px-4 py-3 bg-gray-50 rounded-lg text-sm text-gray-800 border border-gray-200">
+                    {formattedDate}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2 text-gray-700">Selected Time</label>
+                  <div className="px-4 py-3 bg-gray-50 rounded-lg text-sm text-gray-800 border border-gray-200">
+                    {selectedTime}
+                  </div>
                 </div>
               </div>
 
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-2 text-gray-700">Selected Date</label>
-                <div className="px-4 py-3 bg-gray-50 rounded-lg text-sm text-gray-800 border border-gray-200">
-                  {formattedDate}
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-2 text-gray-700">Selected Time</label>
-                <div className="px-4 py-3 bg-gray-50 rounded-lg text-sm text-gray-800 border border-gray-200">
-                  {selectedTime}
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-sm font-medium mb-2 text-gray-700">Consultation Fee</label>
-                <div className="px-4 py-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg text-sm border-2 border-green-200">
-                  <span className="text-2xl font-bold text-green-600">₹500</span>
-                </div>
-              </div>
-
+              {/* Textarea full width */}
               <div className="mb-6">
                 <label className="block text-sm font-medium mb-2 text-gray-700">Describe your issue *</label>
                 <textarea
@@ -595,7 +639,7 @@ export default function BookAppointment() {
                   disabled={!issue.trim() || paymentProcessing}
                   className={`px-5 py-2.5 rounded-lg text-white text-sm font-medium transition flex items-center gap-2 ${
                     issue.trim() && !paymentProcessing
-                      ? 'bg-[#2ADA71] hover:bg-[#25c063]' 
+                      ? 'bg-[#2ADA71] hover:bg-[#25c063]'
                       : 'bg-gray-400 cursor-not-allowed'
                   }`}
                 >
@@ -616,6 +660,7 @@ export default function BookAppointment() {
           </div>
         </div>
       )}
+
 
       <Footer />
     </>
